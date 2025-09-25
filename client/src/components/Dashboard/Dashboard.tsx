@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Typography,
   Button,
-  Grid,
   Card,
   CardContent,
   CardActions,
@@ -26,11 +25,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     try {
       setLoading(true);
       const response = await projectsAPI.getProjects({
@@ -42,7 +37,11 @@ const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search, showNotification]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(event.target.value);

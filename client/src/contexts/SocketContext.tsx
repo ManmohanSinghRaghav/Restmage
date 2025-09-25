@@ -43,6 +43,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
       setSocket(null);
       setConnected(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user]);
 
   const value: SocketContextType = {

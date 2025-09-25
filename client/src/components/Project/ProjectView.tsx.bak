@@ -233,10 +233,9 @@ const ProjectView: React.FC = () => {
           </Box>
         </Box>
 
-        <Grid container spacing={3}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', marginBottom: '24px' }}>
           {/* Project Overview */}
-          <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3, height: 'fit-content' }}>
+          <Paper sx={{ p: 3, height: 'fit-content' }}>
               <Typography variant="h6" gutterBottom>
                 Project Overview
               </Typography>

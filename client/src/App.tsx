@@ -10,8 +10,8 @@ import Sidebar from './components/Layout/Sidebar';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard/Dashboard';
-import ProjectView from './components/Project/ProjectView';
-import ProjectEditor from './components/Project/ProjectEditor';
+import SimpleProjectView from './components/Project/SimpleProjectView';
+import SimpleProjectEditor from './components/Project/SimpleProjectEditor';
 import { Box } from '@mui/material';
 
 const theme = createTheme({
@@ -75,8 +75,8 @@ const AppContent: React.FC = () => {
       >
         <Routes>
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-          <Route path="/project/:id" element={<ProtectedRoute><ProjectView /></ProtectedRoute>} />
-          <Route path="/project/:id/edit" element={<ProtectedRoute><ProjectEditor /></ProtectedRoute>} />
+          <Route path="/project/:id" element={<ProtectedRoute><SimpleProjectView /></ProtectedRoute>} />
+          <Route path="/project/:id/edit" element={<ProtectedRoute><SimpleProjectEditor /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
       </Box>

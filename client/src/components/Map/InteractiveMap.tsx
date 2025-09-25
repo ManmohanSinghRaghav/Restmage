@@ -1,10 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon, useMapEvents } from 'react-leaflet';
 import { LatLngTuple, Icon } from 'leaflet';
 import { Box, Paper, Toolbar, IconButton, Typography, Tooltip } from '@mui/material';
 import {
-  Add as AddIcon,
-  Remove as RemoveIcon,
   LocationOn as MarkerIcon,
   CropDin as RectangleIcon,
   RadioButtonUnchecked as CircleIcon,

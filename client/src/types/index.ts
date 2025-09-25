@@ -49,7 +49,7 @@ export interface Project {
       name: string;
       type: 'marker' | 'polygon' | 'line' | 'circle';
       data: any;
-      style: any;
+      style?: any;
       visible: boolean;
     }>;
     center: {
