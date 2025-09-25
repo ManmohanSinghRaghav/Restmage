@@ -142,11 +142,10 @@ const Dashboard: React.FC = () => {
           </Button>
         </Box>
       ) : (
-        <Grid container spacing={3}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
           {projects.map((project) => (
-            <Grid item xs={12} sm={6} md={4} key={project._id}>
-              <Card>
-                <CardContent>
+            <Card key={project._id}>
+              <CardContent>
                   <Typography variant="h6" gutterBottom noWrap>
                     {project.name}
                   </Typography>
@@ -198,9 +197,8 @@ const Dashboard: React.FC = () => {
                   </Button>
                 </CardActions>
               </Card>
-            </Grid>
           ))}
-        </Grid>
+        </Box>
       )}
 
       <Fab
