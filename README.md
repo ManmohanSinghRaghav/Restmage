@@ -191,4 +191,4 @@ For support and questions, please open an issue on GitHub or contact the develop
 
 ---
 
-Built with ❤️ by Manmohan Singh Raghav
+Built with ❤️ by Aman Kushwah

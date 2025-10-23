@@ -17,7 +17,9 @@ const USERNAME_PATTERN = /^[a-zA-Z0-9_]+$/;
 const validateRequest = (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    res.status(400).json({ errors: errors.array() });
+    const first = errors.array()[0];
+    // Return a friendly top-level message so the client UI can surface it
+    res.status(400).json({ message: first.msg, errors: errors.array() });
     return false;
   }
   return true;
@@ -78,20 +80,36 @@ router.post('/register', [
     });
   } catch (error) {
     console.error('Registration error:', error);
+    if (error?.code === 11000) {
+      // Duplicate key error from unique index
+      return res.status(400).json({ message: 'User with this email or username already exists' });
+    }
+    if (error?.name === 'ValidationError') {
+      const firstError = Object.values(error.errors)[0];
+      return res.status(400).json({ message: firstError?.message || 'Invalid input' });
+    }
     res.status(500).json({ message: 'Server error during registration' });
   }
 });
 
+// Login now supports either email or username in the same field for better UX.
+// The client currently sends this value under the "email" key.
 router.post('/login', [
-  emailValidation,
+  body('email').notEmpty().withMessage('Email or username is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
   try {
     if (!validateRequest(req, res)) return;
 
-    const { email, password } = req.body;
+    const { email: identifier, password } = req.body;
 
-    const user = await User.findOne({ email });
+    // Determine whether the identifier looks like an email or a username
+    const isEmail = typeof identifier === 'string' && identifier.includes('@');
+    const query = isEmail
+      ? { email: identifier.toLowerCase() }
+      : { username: identifier };
+
+    const user = await User.findOne(query);
     if (!user) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
