@@ -13,11 +13,19 @@ const projectRoutes = require('./routes/projects');
 const costRoutes = require('./routes/cost');
 const mapRoutes = require('./routes/maps');
 const exportRoutes = require('./routes/export');
+const floorplanRoutes = require('./routes/floorplan');
+const pricePredictionRoutes = require('./routes/price-prediction');
+const chatbotRoutes = require('./routes/chatbot');
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/restmage';
 const MONGODB_PING_DB = process.env.MONGODB_PING_DB || 'admin';
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:3000";
+const ALLOW_ALL_ORIGINS = (process.env.ALLOW_ALL_ORIGINS === 'true') || (process.env.NODE_ENV !== 'production');
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || CLIENT_URL)
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 100;
 
@@ -26,7 +34,14 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: CLIENT_URL,
+    origin: (origin, callback) => {
+      if (ALLOW_ALL_ORIGINS) return callback(null, true);
+      // Allow server-to-server and tools with no origin
+      if (!origin) return callback(null, true);
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+      if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      return callback(new Error('Not allowed by CORS'));
+    },
     methods: ["GET", "POST"]
   }
 });
@@ -38,8 +53,15 @@ const apiRateLimiter = rateLimit({
 
 app.use(helmet());
 app.use(apiRateLimiter);
+// CORS: allow configured origins and any localhost:* during development
 app.use(cors({
-  origin: CLIENT_URL,
+  origin: (origin, callback) => {
+    if (ALLOW_ALL_ORIGINS) return callback(null, true);
+    if (!origin) return callback(null, true);
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -50,6 +72,9 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/cost', costRoutes);
 app.use('/api/maps', mapRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/floorplan', floorplanRoutes);
+app.use('/api/price-prediction', pricePredictionRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ 

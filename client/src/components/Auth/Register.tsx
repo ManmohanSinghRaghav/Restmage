@@ -58,7 +58,7 @@ const Register: React.FC = () => {
       showNotification('Registration successful!', 'success');
       navigate('/dashboard');
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Registration failed';
+      const errorMessage = err.response?.data?.message || err.message || 'Registration failed';
       setError(errorMessage);
     } finally {
       setLoading(false);
