@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import api from '../../services/api';
+import axios from 'axios';
 import { Snackbar, Alert } from '@mui/material';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
@@ -129,8 +130,32 @@ const MapView: React.FC = () => {
       console.log('Save layout response', resp.data);
       setSnack({ open: true, message: 'Layout saved successfully', severity: 'success' });
     } catch (err: any) {
-      console.error('Error saving layout:', err);
+      console.error('Error saving layout (primary):', err);
       const message = err?.response?.data?.message || err?.message || 'Unknown error';
+      // If server returned 404 'Route not found', try a couple of common local base URLs as a fallback
+      if (err?.response?.status === 404 && message === 'Route not found') {
+        const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+        const fallbacks = [
+          `http://${host}:5000/api/maps/save-layout`,
+          `http://127.0.0.1:5000/api/maps/save-layout`,
+          `http://localhost:5000/api/maps/save-layout`,
+          `${window.location.origin}/api/maps/save-layout`
+        ];
+
+        for (const url of fallbacks) {
+          try {
+            console.log('Trying fallback save URL', url);
+            const resp2 = await axios.post(url, { coordinates, area }, { headers: { 'Content-Type': 'application/json', Authorization: (localStorage.getItem('token') ? `Bearer ${localStorage.getItem('token')}` : undefined) } });
+            console.log('Fallback save succeeded', resp2.data);
+            setSnack({ open: true, message: 'Layout saved successfully', severity: 'success' });
+            return;
+          } catch (err2: any) {
+            console.warn('Fallback save failed for', url, err2?.response?.status);
+            // continue to next fallback
+          }
+        }
+      }
+
       setSnack({ open: true, message: `Error saving layout: ${message}`, severity: 'error' });
     }
   };
