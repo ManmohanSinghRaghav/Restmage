@@ -185,6 +185,38 @@ const MapView: React.FC = () => {
         <NorthArrow />
       </MapContainer>
 
+      {process.env.NODE_ENV !== 'production' && (
+        <div style={{ position: 'absolute', top: 80, right: 20, zIndex: 1000 }}>
+          <button
+            onClick={async () => {
+              if (!featureGroupRef.current) return;
+              const layer = featureGroupRef.current.getLayers()[0] as L.Polygon | undefined;
+              const latLngs = layer ? (layer.getLatLngs()[0] as L.LatLng[]).map(ll => ({ lat: ll.lat, lng: ll.lng })) : [];
+              const payload = { coordinates: latLngs, area };
+              const fallbacks = [
+                `/api/maps/debug-save`,
+                `http://localhost:5000/api/maps/debug-save`,
+                `http://127.0.0.1:5000/api/maps/debug-save`
+              ];
+              for (const url of fallbacks) {
+                try {
+                  const resp = await axios.post(url, payload, { headers: { 'Content-Type': 'application/json' } });
+                  console.log('Debug save success', url, resp.data);
+                  setSnack({ open: true, message: `Debug save OK (${url})`, severity: 'success' });
+                  return;
+                } catch (e: any) {
+                  console.warn('Debug save failed', url, e?.response?.status);
+                }
+              }
+              setSnack({ open: true, message: 'Debug save: all fallbacks failed', severity: 'error' });
+            }}
+            style={{ padding: '6px 10px', borderRadius: 6, background: '#eee', border: '1px solid #ccc' }}
+          >
+            Debug Save
+          </button>
+        </div>
+      )}
+
       <div style={{
         position: 'absolute',
         bottom: '20px',
