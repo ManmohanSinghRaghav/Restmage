@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import axios from 'axios';
+import api from '../../services/api';
+import { Snackbar, Alert } from '@mui/material';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw/dist/leaflet.draw.css';
 // import leaflet-draw JS so L.Control.Draw is registered on the global Leaflet object
@@ -123,22 +124,21 @@ const MapView: React.FC = () => {
     }));
 
     try {
-      // Use backend host in development (your API runs on :5000)
-      const API_BASE = process.env.NODE_ENV === 'development' ? 'http://localhost:5000' : '';
-      const url = `${API_BASE}/api/maps/save-layout`;
-      console.log('Saving layout to', url, { coordinates, area });
-      const resp = await axios.post(url, {
-        coordinates,
-        area
-      });
+      // Use central api instance (handles baseURL + auth)
+      const resp = await api.post('/maps/save-layout', { coordinates, area });
       console.log('Save layout response', resp.data);
-      alert('Layout saved successfully!');
+      setSnack({ open: true, message: 'Layout saved successfully', severity: 'success' });
     } catch (err: any) {
       console.error('Error saving layout:', err);
-      // Show a more descriptive error to the user for debugging
       const message = err?.response?.data?.message || err?.message || 'Unknown error';
-      alert(`Error saving layout. ${message}`);
+      setSnack({ open: true, message: `Error saving layout: ${message}`, severity: 'error' });
     }
+  };
+
+  const [snack, setSnack] = React.useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  const handleSnackClose = (_: any, reason?: string) => {
+    if (reason === 'clickaway') return;
+    setSnack(s => ({ ...s, open: false }));
   };
 
   return (
@@ -186,6 +186,11 @@ const MapView: React.FC = () => {
           Save Layout
         </button>
       </div>
+      <Snackbar open={snack.open} autoHideDuration={4000} onClose={handleSnackClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
+        <Alert onClose={handleSnackClose} severity={snack.severity} sx={{ width: '100%' }}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
