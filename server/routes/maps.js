@@ -5,6 +5,8 @@ const { validateObjectId } = require('../middleware/validateObjectId');
 
 const router = express.Router();
 
+console.log('maps routes module loaded');
+
 // Get map data for a project
 router.get('/:projectId', auth, validateObjectId('projectId'), async (req, res) => {
   try {
@@ -215,6 +217,7 @@ router.put('/:projectId/view', auth, validateObjectId('projectId'), async (req, 
 // If you prefer a different behavior (save to a project or create a new project), we can adapt this.
 router.post('/save-layout', auth, async (req, res) => {
   try {
+    console.log('POST /api/maps/save-layout called by user', req.user?._id);
     const User = require('../models/User');
     const { coordinates, area, name } = req.body;
 
