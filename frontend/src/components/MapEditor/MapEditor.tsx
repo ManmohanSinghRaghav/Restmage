@@ -1,22 +1,23 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Box, Button, AppBar, Toolbar, Typography, IconButton, Tooltip } from '@mui/material';
-import { 
+import {
   PictureAsPdf as PdfIcon,
   Image as ImageIcon,
   AttachMoney as PricingIcon,
   Save as SaveIcon
 } from '@mui/icons-material';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useNotification } from '../../contexts/NotificationContext';
-import api from '../../services/api';
 
 // Import styles
 import './styles/main.css';
 import './styles/panels.css';
 import './styles/tools.css';
 import './styles/styles.css';
+
+const LOCAL_STORAGE_KEY = 'restmage_map_editor_state';
 
 interface MapEditorProps {
   initialData?: any;
@@ -25,7 +26,6 @@ interface MapEditorProps {
 const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const { projectId } = useParams();
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   const [isExporting, setIsExporting] = useState(false);
@@ -45,14 +45,27 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
   }, []);
 
   useEffect(() => {
-    // Load data when initialData or projectId changes
     if (initialData) {
       loadMapData(initialData);
-    } else if (projectId) {
-      fetchProjectData(projectId);
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    // Load from local storage if available
+    try {
+      const stored = window.localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        loadMapData(parsed, true);
+      }
+    } catch (error) {
+      console.error('Error loading saved map data:', error);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, projectId]);
+  }, [initialData]);
 
   const initializeEditor = () => {
     try {
@@ -93,7 +106,7 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
     }
   };
 
-  const loadMapData = (data: any) => {
+  const loadMapData = (data: any, silent = false) => {
     try {
       setMapData(data);
       
@@ -102,22 +115,12 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
         window.loadFloorPlanData(data);
       }
       
-      showNotification('Map data loaded successfully', 'success');
+      if (!silent) {
+        showNotification('Map data loaded successfully', 'success');
+      }
     } catch (error) {
       console.error('Error loading map data:', error);
       showNotification('Failed to load map data', 'error');
-    }
-  };
-
-  const fetchProjectData = async (id: string) => {
-    try {
-      const response = await api.get(`/projects/${id}`);
-      if (response.data && response.data.mapData) {
-        loadMapData(response.data.mapData);
-      }
-    } catch (error) {
-      console.error('Error fetching project data:', error);
-      showNotification('Failed to load project data', 'error');
     }
   };
 
@@ -126,14 +129,16 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
       // Get current state from editor
       const currentData = window.getEditorState ? window.getEditorState() : mapData;
 
-      if (projectId) {
-        await api.put(`/projects/${projectId}`, {
-          mapData: currentData
-        });
-        showNotification('Map saved successfully', 'success');
-      } else {
-        showNotification('No project ID found', 'warning');
+      if (!currentData) {
+        showNotification('No map data to save yet', 'info');
+        return;
       }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(currentData));
+      }
+      setMapData(currentData);
+      showNotification('Map saved to this browser', 'success');
     } catch (error) {
       console.error('Error saving map:', error);
       showNotification('Failed to save map', 'error');
@@ -158,7 +163,7 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
         // Create download link
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.download = `floorplan-${projectId || 'new'}-${Date.now()}.png`;
+        link.download = `floorplan-${Date.now()}.png`;
         link.href = url;
         link.click();
         
@@ -205,13 +210,13 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
       
       // Add metadata
       pdf.setProperties({
-        title: `Floor Plan - ${projectId || 'New Project'}`,
+        title: 'Floor Plan',
         subject: 'Floor Plan Design',
         author: 'Restmage',
         creator: 'Restmage Map Editor'
       });
 
-      pdf.save(`floorplan-${projectId || 'new'}-${Date.now()}.pdf`);
+      pdf.save(`floorplan-${Date.now()}.pdf`);
       showNotification('PDF exported successfully', 'success');
     } catch (error) {
       console.error('Error exporting PDF:', error);
@@ -223,11 +228,7 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
 
   const handleGetPricing = () => {
     // Navigate to pricing page with current map data
-    if (projectId) {
-      navigate(`/price-prediction?projectId=${projectId}`);
-    } else {
-      navigate('/price-prediction');
-    }
+    navigate('/price-prediction');
   };
 
   return (

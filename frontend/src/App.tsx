@@ -5,19 +5,14 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { Box } from '@mui/material';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { SocketProvider } from './contexts/SocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 
 import Header from './components/Layout/Header';
 import Sidebar from './components/Layout/Sidebar';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
-import Dashboard from './components/Dashboard/Dashboard';
-import SimpleProjectView from './components/Project/SimpleProjectView';
-import SimpleProjectEditor from './components/Project/SimpleProjectEditor';
 import FloorPlanGenerator from './components/FloorPlan/FloorPlanGenerator';
 import PricePrediction from './components/PricePrediction/PricePrediction';
-import Chatbot from './components/Chatbot/Chatbot';
 import MapEditor from './components/MapEditor/MapEditor';
 
 const APPLICATION_THEME = createTheme({
@@ -79,63 +74,31 @@ const AuthenticatedRoutes: React.FC = () => {
         }}
       >
         <Routes>
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/floorplan" 
+          <Route
+            path="/floorplan"
             element={
               <ProtectedRoute>
                 <FloorPlanGenerator />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/price-prediction" 
-            element={
-              <ProtectedRoute>
-                <PricePrediction />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/chatbot" 
-            element={
-              <ProtectedRoute>
-                <Chatbot />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/project/:id" 
-            element={
-              <ProtectedRoute>
-                <SimpleProjectView />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/project/:id/edit" 
-            element={
-              <ProtectedRoute>
-                <SimpleProjectEditor />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/project/:projectId/editor" 
+          <Route
+            path="/map-editor"
             element={
               <ProtectedRoute>
                 <MapEditor />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route path="*" element={<Navigate to="/dashboard" />} />
+          <Route
+            path="/price-prediction"
+            element={
+              <ProtectedRoute>
+                <PricePrediction />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/map-editor" />} />
         </Routes>
       </Box>
     </Box>
@@ -154,11 +117,9 @@ function App() {
       <CssBaseline />
       <AuthProvider>
         <NotificationProvider>
-          <SocketProvider>
-            <Router>
-              <AppContent />
-            </Router>
-          </SocketProvider>
+          <Router>
+            <AppContent />
+          </Router>
         </NotificationProvider>
       </AuthProvider>
     </ThemeProvider>

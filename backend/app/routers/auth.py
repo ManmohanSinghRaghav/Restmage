@@ -9,7 +9,7 @@ from datetime import datetime
 from bson import ObjectId
 
 from app.core.database import get_db
-from app.core.security import hash_password, verify_password, create_access_token, get_token_expiry_seconds
+from app.core.security import create_access_token, get_token_expiry_seconds
 from app.core.deps import get_current_user, get_current_active_user
 from app.models.user import (
     UserCreate,
@@ -59,7 +59,6 @@ async def register(
         "email": user_data.email.lower(),
         "password": user_data.password,  # Store plain password
         "role": "user",
-        "projects": [],
         "created_at": datetime.utcnow(),
         "last_login": datetime.utcnow(),
         "is_active": True
@@ -141,9 +140,6 @@ async def login(
     
     # Convert ObjectIds to strings for Pydantic
     user_doc["_id"] = user_id
-    if "projects" in user_doc and user_doc["projects"]:
-        user_doc["projects"] = [str(p) if isinstance(p, ObjectId) else p for p in user_doc["projects"]]
-    
     # Build response without UserInDB model
     user_response = UserResponse(
         _id=user_id,

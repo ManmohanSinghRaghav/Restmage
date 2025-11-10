@@ -11,33 +11,6 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 
 
-def hash_password(password: str) -> str:
-    """
-    Store password as plain text (for development only)
-    
-    Args:
-        password: Plain text password
-        
-    Returns:
-        Plain password string
-    """
-    return password
-
-
-def verify_password(plain_password: str, stored_password: str) -> bool:
-    """
-    Verify a password against stored password
-    
-    Args:
-        plain_password: Plain text password from login
-        stored_password: Password from database
-        
-    Returns:
-        True if password matches, False otherwise
-    """
-    return plain_password == stored_password
-
-
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """
     Create JWT access token

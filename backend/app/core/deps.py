@@ -67,9 +67,6 @@ async def get_current_user(
     
     # Convert ObjectIds to strings for Pydantic
     user_doc["_id"] = str(user_doc["_id"])
-    if "projects" in user_doc and user_doc["projects"]:
-        user_doc["projects"] = [str(p) if isinstance(p, ObjectId) else p for p in user_doc["projects"]]
-    
     # Convert to UserInDB model
     user = UserInDB(**user_doc)
     

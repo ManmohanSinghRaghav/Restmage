@@ -56,7 +56,7 @@ const Register: React.FC = () => {
         password: formData.password,
       });
       showNotification('Registration successful!', 'success');
-      navigate('/dashboard');
+      navigate('/map-editor');
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Registration failed';
       setError(errorMessage);

@@ -4,7 +4,7 @@ Data validation and serialization for User entity
 """
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import List, Optional, Any
+from typing import Optional
 from datetime import datetime
 from bson import ObjectId
 
@@ -44,7 +44,6 @@ class UserInDB(UserBase):
     id: Optional[str] = Field(default=None, alias="_id")
     password: str  # Plain password (for development only)
     role: str = "user"
-    projects: List[str] = []  # Store as strings for easier serialization
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = None
     is_active: bool = True

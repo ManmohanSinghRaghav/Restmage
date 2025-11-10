@@ -28,9 +28,9 @@ const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      await login({ email, password });
-      showNotification('Login successful!', 'success');
-      navigate('/dashboard');
+  await login({ email, password });
+  showNotification('Login successful!', 'success');
+  navigate('/map-editor');
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || err.message || 'Login failed';
       setError(errorMessage);

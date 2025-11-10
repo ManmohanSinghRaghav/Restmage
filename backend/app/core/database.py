@@ -78,13 +78,6 @@ async def create_indexes():
         await database.db.users.create_index("username", unique=True)
         await database.db.users.create_index("createdAt")
         
-        # Projects collection indexes
-        await database.db.projects.create_index("owner")
-        await database.db.projects.create_index("createdAt")
-        await database.db.projects.create_index("status")
-        await database.db.projects.create_index([("owner", 1), ("status", 1)])
-        await database.db.projects.create_index([("name", "text"), ("description", "text")])
-        
         logger.info("✅ Database indexes created successfully")
         
     except Exception as e:

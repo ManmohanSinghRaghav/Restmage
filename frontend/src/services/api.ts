@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { User, Project, LoginCredentials, RegisterData } from '../types';
+import { User, LoginCredentials, RegisterData } from '../types';
 
 // Build a smart default API base URL so the app works on localhost and LAN IPs
 // without additional configuration. You can still override it with
@@ -96,12 +96,14 @@ api.interceptors.response.use(
 export const authAPI = {
   login: async (credentials: LoginCredentials): Promise<{ user: User; token: string }> => {
     const response = await api.post('/auth/login', credentials);
-    return response.data;
+    const { access_token, user } = response.data;
+    return { token: access_token, user };
   },
 
   register: async (data: RegisterData): Promise<{ user: User; token: string }> => {
     const response = await api.post('/auth/register', data);
-    return response.data;
+    const { access_token, user } = response.data;
+    return { token: access_token, user };
   },
 
   getMe: async (): Promise<User> => {
@@ -110,121 +112,7 @@ export const authAPI = {
   },
 
   updateProfile: async (data: Partial<User>): Promise<User> => {
-    const response = await api.put('/auth/profile', data);
-    return response.data.user;
-  },
-
-  changePassword: async (currentPassword: string, newPassword: string): Promise<void> => {
-    await api.put('/auth/change-password', { currentPassword, newPassword });
-  },
-};
-
-export const projectsAPI = {
-  getProjects: async (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    status?: string;
-  }): Promise<{
-    projects: Project[];
-    totalPages: number;
-    currentPage: number;
-    total: number;
-  }> => {
-    const response = await api.get('/projects', { params });
-    return response.data;
-  },
-
-  getProject: async (id: string): Promise<Project> => {
-    const response = await api.get(`/projects/${id}`);
-    return response.data;
-  },
-
-  createProject: async (data: Partial<Project>): Promise<Project> => {
-    const response = await api.post('/projects', data);
-    return response.data.project;
-  },
-
-  updateProject: async (id: string, data: Partial<Project>): Promise<Project> => {
-    const response = await api.put(`/projects/${id}`, data);
-    return response.data.project;
-  },
-
-  updateMapData: async (id: string, mapData: any): Promise<any> => {
-    const response = await api.put(`/projects/${id}/map`, mapData);
-    return response.data.mapData;
-  },
-
-  deleteProject: async (id: string): Promise<void> => {
-    await api.delete(`/projects/${id}`);
-  },
-
-  addCollaborator: async (id: string, email: string, role: string): Promise<void> => {
-    await api.post(`/projects/${id}/collaborators`, { email, role });
-  },
-};
-
-export const costAPI = {
-  getMaterials: async (): Promise<any> => {
-    const response = await api.get('/cost/materials');
-    return response.data;
-  },
-
-  calculateCost: async (projectId: string): Promise<any> => {
-    const response = await api.post(`/cost/${projectId}/calculate`);
-    return response.data.costEstimation;
-  },
-
-  getCostEstimation: async (projectId: string): Promise<any> => {
-    const response = await api.get(`/cost/${projectId}`);
-    return response.data;
-  },
-
-  getMarketData: async (zipCode: string): Promise<any> => {
-    const response = await api.get(`/cost/market/${zipCode}`);
-    return response.data;
-  },
-};
-
-export const mapsAPI = {
-  getMapData: async (projectId: string): Promise<any> => {
-    const response = await api.get(`/maps/${projectId}`);
-    return response.data;
-  },
-
-  addLayer: async (projectId: string, layer: any): Promise<any> => {
-    const response = await api.post(`/maps/${projectId}/layers`, { layer });
-    return response.data;
-  },
-
-  deleteLayer: async (projectId: string, layerId: string): Promise<void> => {
-    await api.delete(`/maps/${projectId}/layers/${layerId}`);
-  },
-
-  updateMapView: async (projectId: string, view: any): Promise<any> => {
-    const response = await api.put(`/maps/${projectId}/view`, view);
-    return response.data;
-  },
-
-  toggleLayerVisibility: async (projectId: string, layerId: string, visible: boolean): Promise<any> => {
-    const response = await api.put(`/maps/${projectId}/layers/${layerId}/visibility`, { visible });
-    return response.data;
-  },
-};
-
-export const exportAPI = {
-  exportCSV: async (projectId: string): Promise<Blob> => {
-    const response = await api.get(`/export/${projectId}/csv`, { responseType: 'blob' });
-    return response.data;
-  },
-
-  exportPDF: async (projectId: string): Promise<Blob> => {
-    const response = await api.get(`/export/${projectId}/pdf`, { responseType: 'blob' });
-    return response.data;
-  },
-
-  exportJSON: async (projectId: string): Promise<Blob> => {
-    const response = await api.get(`/export/${projectId}/json`, { responseType: 'blob' });
+    const response = await api.put('/auth/me', data);
     return response.data;
   },
 };

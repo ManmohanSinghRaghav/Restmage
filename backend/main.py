@@ -16,7 +16,7 @@ import os
 
 from app.core.config import settings
 from app.core.database import connect_to_mongo, close_mongo_connection
-from app.routers import auth, projects, cost, maps, export_routes, floorplan, price_prediction, chatbot, gemini, predictor
+from app.routers import auth, maps, floorplan, predictor
 from app.middleware.logging_middleware import LoggingMiddleware
 from app.services.ml_service import ml_service
 
@@ -26,7 +26,7 @@ limiter = Limiter(key_func=get_remote_address)
 # Create FastAPI app
 app = FastAPI(
     title="Restmage API",
-    description="Real Estate Map Generator - Floor plan generation and cost estimation",
+    description="Real Estate Map Generator with authentication, map editing, and ML price prediction",
     version="2.0.0",
     docs_url="/docs" if settings.ENVIRONMENT != "production" else "/api/docs",
     redoc_url="/redoc" if settings.ENVIRONMENT != "production" else "/api/redoc",
@@ -122,15 +122,9 @@ async def root(request: Request):
 
 # Include routers
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
-app.include_router(projects.router, prefix="/api/projects", tags=["Projects"])
-app.include_router(cost.router, prefix="/api/cost", tags=["Cost Estimation"])
 app.include_router(maps.router, prefix="/api/maps", tags=["Maps"])
-app.include_router(export_routes.router, prefix="/api/export", tags=["Export"])
 app.include_router(floorplan.router, prefix="/api/floorplan", tags=["Floor Plans"])
-app.include_router(price_prediction.router, prefix="/api/price-prediction", tags=["Price Prediction"])
 app.include_router(predictor.router, prefix="/api", tags=["ML Price Predictor"])  # New ML predictor
-app.include_router(chatbot.router, prefix="/api/chatbot", tags=["Chatbot"])
-app.include_router(gemini.router, prefix="/api/gemini", tags=["AI Generation"])
 
 # Global exception handler
 @app.exception_handler(Exception)

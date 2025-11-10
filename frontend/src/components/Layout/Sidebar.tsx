@@ -10,12 +10,9 @@ import {
   Toolbar,
 } from '@mui/material';
 import {
-  Dashboard as DashboardIcon,
-  Add as AddIcon,
   Map as MapIcon,
   Home as FloorPlanIcon,
   AttachMoney as PriceIcon,
-  Chat as ChatIcon,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 240;
@@ -31,9 +28,9 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
 
   const menuItems = [
     {
-      text: 'Dashboard',
-      icon: <DashboardIcon />,
-      path: '/dashboard',
+      text: 'Map Editor',
+      icon: <MapIcon />,
+      path: '/map-editor',
     },
     {
       text: 'Floor Plan Generator',
@@ -44,21 +41,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       text: 'Price Prediction',
       icon: <PriceIcon />,
       path: '/price-prediction',
-    },
-    {
-      text: 'AI Chatbot',
-      icon: <ChatIcon />,
-      path: '/chatbot',
-    },
-    {
-      text: 'Map View',
-      icon: <MapIcon />,
-      path: '/maps',
-    },
-    {
-      text: 'New Project',
-      icon: <AddIcon />,
-      path: '/project/new',
     },
   ];
 
