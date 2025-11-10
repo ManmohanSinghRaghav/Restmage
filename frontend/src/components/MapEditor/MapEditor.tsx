@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Box, Button, Paper, AppBar, Toolbar, Typography, IconButton, Tooltip } from '@mui/material';
+import { Box, Button, AppBar, Toolbar, Typography, IconButton, Tooltip } from '@mui/material';
 import { 
-  Download as DownloadIcon, 
   PictureAsPdf as PdfIcon,
   Image as ImageIcon,
   AttachMoney as PricingIcon,
@@ -42,6 +41,7 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
       // Cleanup on unmount
       cleanupEditor();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -51,6 +51,7 @@ const MapEditor: React.FC<MapEditorProps> = ({ initialData }) => {
     } else if (projectId) {
       fetchProjectData(projectId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData, projectId]);
 
   const initializeEditor = () => {
