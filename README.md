@@ -221,6 +221,7 @@ Restmage/
 └── README.md
 ```
 
+ ------------------------------------------------------------------------------
 ## Development
 
 ### NPM Scripts
@@ -250,8 +251,16 @@ npm start                   # Start production server
 # Utilities
 node scripts/health-check.js  # Validate setup
 ```
+<<<<<<< HEAD
 
 ## Troubleshooting
+=======
+ ------------------------------------------------------------------------------
+### Building for Production
+```bash
+# Build the React app
+npm run build
+>>>>>>> dceb6dae1088e5f0355a178a71a60b696405bfa6
 
 ### MongoDB Connection Failed
 ```bash
@@ -261,6 +270,7 @@ net start MongoDB
 # Linux/Mac
 sudo systemctl start mongod
 ```
+<<<<<<< HEAD
 
 ### Port Already in Use
 ```bash
@@ -303,6 +313,9 @@ npm run install
 - **Socket.IO** WebSocket server
 - **PDFKit** for server-side PDF generation
 
+=======
+ ------------------------------------------------------------------------------
+>>>>>>> dceb6dae1088e5f0355a178a71a60b696405bfa6
 ## Security Features
 
 - JWT-based authentication
@@ -311,7 +324,7 @@ npm run install
 - CORS configuration
 - Input validation and sanitization
 - Helmet.js security headers
-
+ ------------------------------------------------------------------------------
 ## Contributing
 
 1. Fork the repository
@@ -319,7 +332,7 @@ npm run install
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
+ ------------------------------------------------------------------------------
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -329,5 +342,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For support and questions, please open an issue on GitHub or contact the development team.
 
 ---
-
-Built with ❤️ by Aman Kushwah
