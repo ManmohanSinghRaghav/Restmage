@@ -4,6 +4,7 @@
 # Core Framework
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
+mangum==0.17.0
 pydantic==2.10.5
 pydantic-settings==2.7.1
 
