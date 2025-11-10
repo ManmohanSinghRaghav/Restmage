@@ -1,7 +1,22 @@
 import axios from 'axios';
 import { User, Project, LoginCredentials, RegisterData } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+// Build a smart default API base URL so the app works on localhost and LAN IPs
+// without additional configuration. You can still override it with
+// REACT_APP_API_URL or REACT_APP_API_PORT.
+const getDefaultApiBaseUrl = (): string => {
+  try {
+    const win: any = (typeof window !== 'undefined') ? window : undefined;
+    const protocol = win?.location?.protocol || 'http:';
+    const hostname = win?.location?.hostname || 'localhost';
+    const port = process.env.REACT_APP_API_PORT || '5000';
+    return `${protocol}//${hostname}:${port}/api`;
+  } catch {
+    return 'http://localhost:5000/api';
+  }
+};
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || getDefaultApiBaseUrl();
 const STORAGE_KEYS = {
   TOKEN: 'token',
   USER: 'user'
@@ -14,6 +29,24 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Prepare alternate API base URLs to transparently recover from host/port mismatches
+const computeAltBaseUrls = (): string[] => {
+  const list: string[] = [];
+  try {
+    const win: any = (typeof window !== 'undefined') ? window : undefined;
+    const protocol = win?.location?.protocol || 'http:';
+    const host = win?.location?.hostname || 'localhost';
+    const port = process.env.REACT_APP_API_PORT || '5000';
+    const currentHostUrl = `${protocol}//${host}:${port}/api`;
+    if (currentHostUrl !== API_BASE_URL) list.push(currentHostUrl);
+  } catch {}
+  // Common local fallbacks
+  if ('http://localhost:5000/api' !== API_BASE_URL) list.push('http://localhost:5000/api');
+  if ('http://127.0.0.1:5000/api' !== API_BASE_URL) list.push('http://127.0.0.1:5000/api');
+  return Array.from(new Set(list));
+};
+const ALT_BASE_URLS = computeAltBaseUrls();
 
 const attachAuthToken = (config: any) => {
   const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
@@ -35,7 +68,29 @@ const handleUnauthorizedError = (error: any) => {
 api.interceptors.request.use(attachAuthToken);
 api.interceptors.response.use(
   (response) => response,
-  handleUnauthorizedError
+  async (error) => {
+    // First, handle 401 the usual way
+    if (error?.response?.status === UNAUTHORIZED_STATUS) {
+      return handleUnauthorizedError(error);
+    }
+
+    // On pure network errors (no response), attempt alternate base URLs once
+    const config = error?.config || {};
+    if (!error.response && !config.__altTried && ALT_BASE_URLS.length > 0) {
+      config.__altTried = true;
+      for (const alt of ALT_BASE_URLS) {
+        try {
+          const retry = { ...config, baseURL: alt };
+          const res = await axios.request(retry);
+          return res;
+        } catch (e) {
+          // try next alt
+        }
+      }
+    }
+
+    return Promise.reject(error);
+  }
 );
 
 export const authAPI = {

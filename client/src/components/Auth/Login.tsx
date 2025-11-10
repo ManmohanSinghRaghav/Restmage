@@ -32,7 +32,7 @@ const Login: React.FC = () => {
       showNotification('Login successful!', 'success');
       navigate('/dashboard');
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Login failed';
+      const errorMessage = err.response?.data?.message || err.message || 'Login failed';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -69,7 +69,7 @@ const Login: React.FC = () => {
               required
               fullWidth
               id="email"
-              label="Email Address"
+              label="Email or Username"
               name="email"
               autoComplete="email"
               autoFocus

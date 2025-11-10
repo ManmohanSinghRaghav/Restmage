@@ -15,6 +15,9 @@ import Register from './components/Auth/Register';
 import Dashboard from './components/Dashboard/Dashboard';
 import SimpleProjectView from './components/Project/SimpleProjectView';
 import SimpleProjectEditor from './components/Project/SimpleProjectEditor';
+import FloorPlanGenerator from './components/FloorPlan/FloorPlanGenerator';
+import PricePrediction from './components/PricePrediction/PricePrediction';
+import Chatbot from './components/Chatbot/Chatbot';
 
 const APPLICATION_THEME = createTheme({
   palette: {
@@ -80,6 +83,30 @@ const AuthenticatedRoutes: React.FC = () => {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/floorplan" 
+            element={
+              <ProtectedRoute>
+                <FloorPlanGenerator />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/price-prediction" 
+            element={
+              <ProtectedRoute>
+                <PricePrediction />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/chatbot" 
+            element={
+              <ProtectedRoute>
+                <Chatbot />
               </ProtectedRoute>
             } 
           />
