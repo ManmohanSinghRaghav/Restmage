@@ -28,9 +28,11 @@ app = FastAPI(
     title="Restmage API",
     description="Real Estate Map Generator - Floor plan generation and cost estimation",
     version="2.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json"
+    docs_url="/docs" if settings.ENVIRONMENT != "production" else "/api/docs",
+    redoc_url="/redoc" if settings.ENVIRONMENT != "production" else "/api/redoc",
+    openapi_url="/openapi.json" if settings.ENVIRONMENT != "production" else "/api/openapi.json",
+    # Enable docs in production
+    swagger_ui_parameters={"displayRequestDuration": True, "filter": True}
 )
 
 # Add rate limiter to app state
@@ -61,23 +63,33 @@ app.add_middleware(LoggingMiddleware)
 @app.on_event("startup")
 async def startup_event():
     """Initialize database connection and ML service on startup"""
-    await connect_to_mongo()
+    try:
+        await connect_to_mongo()
+        print("✅ Database connection established")
+    except Exception as e:
+        print(f"⚠️  Database connection failed: {e}")
+        # Don't fail startup - some endpoints may still work
     
     # Load ML model
-    if ml_service.load_model():
-        print("✅ ML model loaded successfully")
-    else:
-        print("⚠️  ML model not found - using fallback heuristic model")
+    try:
+        if ml_service.load_model():
+            print("✅ ML model loaded successfully")
+        else:
+            print("⚠️  ML model not found - using fallback heuristic model")
+    except Exception as e:
+        print(f"⚠️  ML model loading failed: {e}")
     
-    print(f"🚀 Restmage API started on port {settings.PORT}")
-    print(f"📚 API Documentation: http://localhost:{settings.PORT}/api/docs")
+    print(f"� Restmage API started")
     print(f"🌍 Environment: {settings.ENVIRONMENT}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Close database connection on shutdown"""
-    await close_mongo_connection()
-    print("👋 Restmage API shutting down...")
+    try:
+        await close_mongo_connection()
+        print("👋 Database connection closed")
+    except Exception as e:
+        print(f"⚠️  Error closing database: {e}")
 
 # Health check endpoint
 @app.get("/api/health", tags=["Health"])
@@ -95,12 +107,17 @@ async def health_check():
 
 # Root endpoint
 @app.get("/", tags=["Root"])
-async def root():
+async def root(request: Request):
     """Root endpoint with API information"""
+    base_url = str(request.base_url).rstrip('/')
     return {
         "message": "Restmage API v2.0 - FastAPI Backend",
-        "docs": f"http://localhost:{settings.PORT}/api/docs",
-        "health": f"http://localhost:{settings.PORT}/api/health"
+        "status": "running",
+        "docs": f"{base_url}/api/docs",
+        "redoc": f"{base_url}/api/redoc",
+        "health": f"{base_url}/api/health",
+        "version": "2.0.0",
+        "environment": settings.ENVIRONMENT
     }
 
 # Include routers

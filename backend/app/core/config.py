@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     CLIENT_URL: str = "http://localhost:3000"
+    CORS_ORIGINS: str = ""  # Comma-separated origins from Vercel
     ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
@@ -69,8 +70,18 @@ class Settings(BaseSettings):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
+        # Parse CORS_ORIGINS from Vercel environment variable
+        if self.CORS_ORIGINS:
+            cors_list = [
+                origin.strip() 
+                for origin in self.CORS_ORIGINS.split(",") 
+                if origin.strip()
+            ]
+            if cors_list:
+                self.ALLOWED_ORIGINS = cors_list
+        
         # Parse ALLOWED_ORIGINS if it's a comma-separated string
-        if isinstance(self.ALLOWED_ORIGINS, str):
+        elif isinstance(self.ALLOWED_ORIGINS, str):
             self.ALLOWED_ORIGINS = [
                 origin.strip() 
                 for origin in self.ALLOWED_ORIGINS.split(",") 

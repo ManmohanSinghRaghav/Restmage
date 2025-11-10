@@ -1,11 +1,14 @@
-import sys
-from pathlib import Path
+from fastapi import FastAPI
+from mangum import Mangum
 
-# Add the parent directory to sys.path
-backend_dir = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(backend_dir))
+app = FastAPI()
 
-from main import app
+@app.get("/")
+def read_root():
+    return {"Hello": "World", "status": "working"}
 
-# Vercel serverless function handler
-handler = app
+@app.get("/api/health")
+def health():
+    return {"status": "OK"}
+
+handler = Mangum(app)
