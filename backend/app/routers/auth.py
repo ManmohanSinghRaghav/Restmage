@@ -53,14 +53,11 @@ async def register(
             detail="Username already taken"
         )
     
-    # Hash password
-    password_hash = hash_password(user_data.password)
-    
-    # Create user document
+    # Create user document with plain password
     user_doc = {
         "username": user_data.username,
         "email": user_data.email.lower(),
-        "password_hash": password_hash,
+        "password": user_data.password,  # Store plain password
         "role": "user",
         "projects": [],
         "created_at": datetime.utcnow(),
@@ -115,8 +112,8 @@ async def login(
             detail="Invalid email or password"
         )
     
-    # Verify password
-    if not verify_password(credentials.password, user_doc["password_hash"]):
+    # Verify password (plain text comparison)
+    if credentials.password != user_doc.get("password", ""):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -229,9 +226,9 @@ async def update_current_user_profile(
             )
         update_data["email"] = user_update.email.lower()
     
-    # Update password
+    # Update password (plain text for development)
     if user_update.password:
-        update_data["password_hash"] = hash_password(user_update.password)
+        update_data["password"] = user_update.password
     
     # Update database
     if update_data:

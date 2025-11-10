@@ -4,37 +4,9 @@ Data validation and serialization for User entity
 """
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from pydantic_core import core_schema
 from typing import List, Optional, Any
 from datetime import datetime
 from bson import ObjectId
-
-
-class PyObjectId(str):
-    """Custom ObjectId type for Pydantic v2 - stores as string"""
-    
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler
-    ) -> core_schema.CoreSchema:
-        return core_schema.union_schema([
-            core_schema.is_instance_schema(ObjectId),
-            core_schema.str_schema(),
-        ],
-        serialization=core_schema.plain_serializer_function_ser_schema(
-            lambda x: str(x) if x else None
-        ))
-    
-    @classmethod
-    def _validate(cls, v: Any) -> str:
-        """Validate and convert to string"""
-        if v is None:
-            return None
-        if isinstance(v, ObjectId):
-            return str(v)
-        if isinstance(v, str):
-            return v
-        return str(v)
 
 
 class UserBase(BaseModel):
@@ -69,8 +41,8 @@ class UserUpdate(BaseModel):
 
 class UserInDB(UserBase):
     """User model as stored in database"""
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    password_hash: str
+    id: Optional[str] = Field(default=None, alias="_id")
+    password: str  # Plain password (for development only)
     role: str = "user"
     projects: List[str] = []  # Store as strings for easier serialization
     created_at: datetime = Field(default_factory=datetime.utcnow)

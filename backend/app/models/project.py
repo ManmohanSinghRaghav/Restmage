@@ -9,8 +9,6 @@ from datetime import datetime
 from enum import Enum
 from bson import ObjectId
 
-from app.models.user import PyObjectId
-
 
 class ProjectStatus(str, Enum):
     """Project status enumeration"""
@@ -76,7 +74,7 @@ class ProjectRequirements(BaseModel):
 
 class Collaborator(BaseModel):
     """Collaborator model"""
-    user: PyObjectId
+    user: str  # User ID as string
     role: str = "viewer"
     added_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -118,8 +116,8 @@ class ProjectUpdate(BaseModel):
 
 class ProjectInDB(ProjectBase):
     """Project model as stored in database"""
-    id: Optional[PyObjectId] = Field(default=None, alias="_id")
-    owner: PyObjectId
+    id: Optional[str] = Field(default=None, alias="_id")
+    owner: str  # Owner user ID as string
     collaborators: List[Collaborator] = []
     floor_plan_data: Optional[FloorPlanData] = None
     map_data: Optional[Dict[str, Any]] = None
@@ -127,7 +125,7 @@ class ProjectInDB(ProjectBase):
     tags: List[str] = []
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
-    last_modified_by: Optional[PyObjectId] = None
+    last_modified_by: Optional[str] = None  # User ID as string
     
     model_config = {
         "populate_by_name": True,
