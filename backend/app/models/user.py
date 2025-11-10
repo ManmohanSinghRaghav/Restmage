@@ -4,27 +4,37 @@ Data validation and serialization for User entity
 """
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
-from typing import List, Optional
+from pydantic_core import core_schema
+from typing import List, Optional, Any
 from datetime import datetime
 from bson import ObjectId
 
 
-class PyObjectId(ObjectId):
-    """Custom ObjectId type for Pydantic"""
+class PyObjectId(str):
+    """Custom ObjectId type for Pydantic v2 - stores as string"""
     
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler
+    ) -> core_schema.CoreSchema:
+        return core_schema.union_schema([
+            core_schema.is_instance_schema(ObjectId),
+            core_schema.str_schema(),
+        ],
+        serialization=core_schema.plain_serializer_function_ser_schema(
+            lambda x: str(x) if x else None
+        ))
     
     @classmethod
-    def validate(cls, v):
-        if not ObjectId.is_valid(v):
-            raise ValueError("Invalid ObjectId")
-        return ObjectId(v)
-    
-    @classmethod
-    def __get_pydantic_json_schema__(cls, field_schema):
-        field_schema.update(type="string")
+    def _validate(cls, v: Any) -> str:
+        """Validate and convert to string"""
+        if v is None:
+            return None
+        if isinstance(v, ObjectId):
+            return str(v)
+        if isinstance(v, str):
+            return v
+        return str(v)
 
 
 class UserBase(BaseModel):
@@ -62,16 +72,16 @@ class UserInDB(UserBase):
     id: Optional[PyObjectId] = Field(default=None, alias="_id")
     password_hash: str
     role: str = "user"
-    projects: List[PyObjectId] = []
+    projects: List[str] = []  # Store as strings for easier serialization
     created_at: datetime = Field(default_factory=datetime.utcnow)
     last_login: Optional[datetime] = None
     is_active: bool = True
     
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        json_schema_extra = {
+    model_config = {
+        "populate_by_name": True,
+        "arbitrary_types_allowed": True,
+        "json_encoders": {ObjectId: str},
+        "json_schema_extra": {
             "example": {
                 "username": "johndoe",
                 "email": "john@example.com",
@@ -79,6 +89,7 @@ class UserInDB(UserBase):
                 "is_active": True
             }
         }
+    }
 
 
 class UserResponse(UserBase):
@@ -88,9 +99,10 @@ class UserResponse(UserBase):
     created_at: datetime
     last_login: Optional[datetime] = None
     
-    class Config:
-        populate_by_name = True
-        json_encoders = {ObjectId: str}
+    model_config = {
+        "populate_by_name": True,
+        "json_encoders": {ObjectId: str}
+    }
 
 
 class TokenResponse(BaseModel):

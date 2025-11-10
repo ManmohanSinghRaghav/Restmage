@@ -129,13 +129,14 @@ class ProjectInDB(ProjectBase):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     last_modified_by: Optional[PyObjectId] = None
     
-    class Config:
-        populate_by_name = True
-        arbitrary_types_allowed = True
-        json_encoders = {
+    model_config = {
+        "populate_by_name": True,
+        "arbitrary_types_allowed": True,
+        "json_encoders": {
             ObjectId: str,
             datetime: lambda v: v.isoformat()
         }
+    }
 
 
 class ProjectResponse(BaseModel):
@@ -154,11 +155,12 @@ class ProjectResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
-    class Config:
-        populate_by_name = True
-        json_encoders = {
+    model_config = {
+        "populate_by_name": True,
+        "json_encoders": {
             datetime: lambda v: v.isoformat()
         }
+    }
 
 
 class ProjectListResponse(BaseModel):

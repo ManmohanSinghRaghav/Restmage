@@ -77,21 +77,18 @@ async def register(
         data={"user_id": user_id, "email": user_data.email.lower()}
     )
     
-    # Get user for response
-    user_doc["_id"] = result.inserted_id
-    user = UserInDB(**user_doc)
-    
+    # Build response directly
     return TokenResponse(
         access_token=access_token,
         token_type="bearer",
         expires_in=get_token_expiry_seconds(),
         user=UserResponse(
             _id=user_id,
-            username=user.username,
-            email=user.email,
-            role=user.role,
-            created_at=user.created_at,
-            last_login=user.last_login
+            username=user_data.username,
+            email=user_data.email,
+            role="user",
+            created_at=user_doc["created_at"],
+            last_login=user_doc["last_login"]
         )
     )
 
@@ -145,21 +142,26 @@ async def login(
         data={"user_id": user_id, "email": user_doc["email"]}
     )
     
-    # Convert to model
-    user = UserInDB(**user_doc)
+    # Convert ObjectIds to strings for Pydantic
+    user_doc["_id"] = user_id
+    if "projects" in user_doc and user_doc["projects"]:
+        user_doc["projects"] = [str(p) if isinstance(p, ObjectId) else p for p in user_doc["projects"]]
+    
+    # Build response without UserInDB model
+    user_response = UserResponse(
+        _id=user_id,
+        username=user_doc["username"],
+        email=user_doc["email"],
+        role=user_doc.get("role", "user"),
+        created_at=user_doc["created_at"],
+        last_login=datetime.utcnow()
+    )
     
     return TokenResponse(
         access_token=access_token,
         token_type="bearer",
         expires_in=get_token_expiry_seconds(),
-        user=UserResponse(
-            _id=user_id,
-            username=user.username,
-            email=user.email,
-            role=user.role,
-            created_at=user.created_at,
-            last_login=datetime.utcnow()
-        )
+        user=user_response
     )
 
 

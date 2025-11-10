@@ -1,45 +1,41 @@
 """
 Security Utilities
-JWT token generation/validation and password hashing
+JWT token generation/validation and password storage
 """
 
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from fastapi import HTTPException, status
 
 from app.core.config import settings
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
     """
-    Hash a plain password
+    Store password as plain text (for development only)
     
     Args:
         password: Plain text password
         
     Returns:
-        Hashed password string
+        Plain password string
     """
-    return pwd_context.hash(password)
+    return password
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(plain_password: str, stored_password: str) -> bool:
     """
-    Verify a password against its hash
+    Verify a password against stored password
     
     Args:
-        plain_password: Plain text password
-        hashed_password: Hashed password from database
+        plain_password: Plain text password from login
+        stored_password: Password from database
         
     Returns:
         True if password matches, False otherwise
     """
-    return pwd_context.verify(plain_password, hashed_password)
+    return plain_password == stored_password
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
