@@ -24,6 +24,7 @@ build/
 dist/
 .next/
 out/
+htmlcov/
 
 # TypeScript
 *.tsbuildinfo
@@ -34,6 +35,19 @@ coverage/
 *.lcov
 .nyc_output
 .pytest_cache/
+.coverage
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+.eggs/
 
 # IDEs
 .vscode/
@@ -47,6 +61,9 @@ coverage/
 *.tmp
 tmp/
 temp/
+
+# Vercel
+.vercel
 
 # NPM
 .npm
