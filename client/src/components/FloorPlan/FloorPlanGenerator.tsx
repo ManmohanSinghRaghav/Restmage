@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button, Card, CardContent, Select, MenuItem, FormControl, InputLabel, Chip, Alert } from '@mui/material';
 import { Add as AddIcon, Remove as RemoveIcon, Home as HomeIcon } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
+import WorkflowChoice from './WorkflowChoice';
+import { useNotification } from '../../contexts/NotificationContext';
 
 interface Room {
   type: string;
@@ -58,6 +61,8 @@ const ROOM_TYPES = [
 ];
 
 const FloorPlanGenerator: React.FC = () => {
+  const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [propertyWidth, setPropertyWidth] = useState<number>(50);
   const [propertyHeight, setPropertyHeight] = useState<number>(40);
   const [rooms, setRooms] = useState<Room[]>([
@@ -69,6 +74,8 @@ const FloorPlanGenerator: React.FC = () => {
   const [floorPlan, setFloorPlan] = useState<FloorPlanData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showWorkflowChoice, setShowWorkflowChoice] = useState(false);
+  const [currentRequirements, setCurrentRequirements] = useState<any>(null);
 
   const addRoom = () => {
     setRooms([...rooms, { type: 'Bedroom', count: 1 }]);
@@ -85,22 +92,62 @@ const FloorPlanGenerator: React.FC = () => {
   };
 
   const generateFloorPlan = async () => {
+    // Show workflow choice modal instead of directly generating
+    setCurrentRequirements({
+      propertyWidth,
+      propertyHeight,
+      rooms
+    });
+    setShowWorkflowChoice(true);
+  };
+
+  const handleChooseMap = async () => {
+    setShowWorkflowChoice(false);
     setLoading(true);
     setError(null);
 
     try {
-      const response = await api.post('/floorplan/generate', {
-        propertyWidth,
-        propertyHeight,
-        rooms
+      // Call Gemini API to generate floor plan
+      const response = await api.post('/gemini/generate-map', {
+        requirements: {
+          plotLength: propertyHeight,
+          plotWidth: propertyWidth,
+          bedrooms: rooms.find(r => r.type === 'Bedroom')?.count || 0,
+          bathrooms: rooms.find(r => r.type === 'Bathroom')?.count || 0,
+          kitchen: rooms.some(r => r.type === 'Kitchen'),
+          livingRoom: rooms.some(r => r.type === 'Living Room'),
+          diningRoom: rooms.some(r => r.type === 'Dining Room'),
+          rooms: rooms
+        }
       });
 
-      setFloorPlan(response.data.floorPlan);
+      // Create a new project with the generated map
+      const projectResponse = await api.post('/projects', {
+        name: `Floor Plan ${new Date().toLocaleDateString()}`,
+        description: 'AI-generated floor plan',
+        mapData: response.data.data
+      });
+
+      showNotification('Floor plan generated successfully!', 'success');
+      
+      // Navigate to map editor
+      navigate(`/project/${projectResponse.data._id}/editor`);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to generate floor plan');
+      setError(err.response?.data?.error || 'Failed to generate floor plan');
+      showNotification('Failed to generate floor plan', 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChoosePricing = () => {
+    setShowWorkflowChoice(false);
+    // Navigate to pricing with requirements
+    navigate('/price-prediction', {
+      state: {
+        requirements: currentRequirements
+      }
+    });
   };
 
   const optimizeFloorPlan = async () => {
@@ -403,6 +450,15 @@ const FloorPlanGenerator: React.FC = () => {
 
       {/* Render generated floor plan */}
       {renderFloorPlan()}
+
+      {/* Workflow Choice Modal */}
+      <WorkflowChoice
+        open={showWorkflowChoice}
+        onClose={() => setShowWorkflowChoice(false)}
+        onChooseMap={handleChooseMap}
+        onChoosePricing={handleChoosePricing}
+        requirementsData={currentRequirements}
+      />
     </Box>
   );
 };

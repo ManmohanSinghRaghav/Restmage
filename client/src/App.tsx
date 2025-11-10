@@ -18,6 +18,7 @@ import SimpleProjectEditor from './components/Project/SimpleProjectEditor';
 import FloorPlanGenerator from './components/FloorPlan/FloorPlanGenerator';
 import PricePrediction from './components/PricePrediction/PricePrediction';
 import Chatbot from './components/Chatbot/Chatbot';
+import MapEditor from './components/MapEditor/MapEditor';
 
 const APPLICATION_THEME = createTheme({
   palette: {
@@ -123,6 +124,14 @@ const AuthenticatedRoutes: React.FC = () => {
             element={
               <ProtectedRoute>
                 <SimpleProjectEditor />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/project/:projectId/editor" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
               </ProtectedRoute>
             } 
           />

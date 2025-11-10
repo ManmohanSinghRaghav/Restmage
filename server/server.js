@@ -13,9 +13,11 @@ const projectRoutes = require('./routes/projects');
 const costRoutes = require('./routes/cost');
 const mapRoutes = require('./routes/maps');
 const exportRoutes = require('./routes/export');
+const exportPdfRoutes = require('./routes/export-pdf');
 const floorplanRoutes = require('./routes/floorplan');
 const pricePredictionRoutes = require('./routes/price-prediction');
 const chatbotRoutes = require('./routes/chatbot');
+const geminiRoutes = require('./routes/gemini');
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/restmage';
@@ -72,9 +74,11 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/cost', costRoutes);
 app.use('/api/maps', mapRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/export', exportPdfRoutes);
 app.use('/api/floorplan', floorplanRoutes);
 app.use('/api/price-prediction', pricePredictionRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/gemini', geminiRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ 
