@@ -84,11 +84,13 @@ const PricePrediction: React.FC = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    // Format using Indian Rupee locale
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      maximumFractionDigits: 0,
+      currencyDisplay: 'narrowSymbol'
     }).format(amount);
   };
 

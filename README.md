@@ -141,6 +141,7 @@ Restmage/
 └── README.md
 ```
 
+ ------------------------------------------------------------------------------
 ## Development
 
 ### Running Tests
@@ -154,7 +155,7 @@ npm run test:client
 # Run all tests
 npm test
 ```
-
+ ------------------------------------------------------------------------------
 ### Building for Production
 ```bash
 # Build the React app
@@ -163,7 +164,7 @@ npm run build
 # Start production server
 npm start
 ```
-
+ ------------------------------------------------------------------------------
 ## Security Features
 
 - JWT-based authentication
@@ -172,7 +173,7 @@ npm start
 - CORS configuration
 - Input validation and sanitization
 - Helmet.js security headers
-
+ ------------------------------------------------------------------------------
 ## Contributing
 
 1. Fork the repository
@@ -180,7 +181,7 @@ npm start
 3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-
+ ------------------------------------------------------------------------------
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -190,5 +191,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 For support and questions, please open an issue on GitHub or contact the development team.
 
 ---
-
-Built with ❤️ by Aman Kushwah
