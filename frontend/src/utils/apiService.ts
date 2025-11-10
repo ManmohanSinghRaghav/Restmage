@@ -34,13 +34,13 @@ class ApiService {
    */
   private getBaseURL(): string {
     try {
-      if (process.env.REACT_APP_API_URL) {
-        return process.env.REACT_APP_API_URL;
+      if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL;
       }
 
       const protocol = window.location.protocol;
       const hostname = window.location.hostname;
-      const port = process.env.REACT_APP_API_PORT || '5000';
+      const port = import.meta.env.VITE_API_PORT || '5000';
       return `${protocol}//${hostname}:${port}/api`;
     } catch {
       return 'http://localhost:5000/api';

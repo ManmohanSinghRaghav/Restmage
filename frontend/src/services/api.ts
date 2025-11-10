@@ -3,20 +3,20 @@ import { User, Project, LoginCredentials, RegisterData } from '../types';
 
 // Build a smart default API base URL so the app works on localhost and LAN IPs
 // without additional configuration. You can still override it with
-// REACT_APP_API_URL or REACT_APP_API_PORT.
+// VITE_API_URL or VITE_API_PORT.
 const getDefaultApiBaseUrl = (): string => {
   try {
     const win: any = (typeof window !== 'undefined') ? window : undefined;
     const protocol = win?.location?.protocol || 'http:';
     const hostname = win?.location?.hostname || 'localhost';
-    const port = process.env.REACT_APP_API_PORT || '5000';
+    const port = import.meta.env.VITE_API_PORT || '5000';
     return `${protocol}//${hostname}:${port}/api`;
   } catch {
     return 'http://localhost:5000/api';
   }
 };
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || getDefaultApiBaseUrl();
+const API_BASE_URL = import.meta.env.VITE_API_URL || getDefaultApiBaseUrl();
 const STORAGE_KEYS = {
   TOKEN: 'token',
   USER: 'user'

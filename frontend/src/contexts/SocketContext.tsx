@@ -16,7 +16,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const newSocket = io(process.env.REACT_APP_SERVER_URL || 'http://localhost:5000', {
+      const newSocket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:5000', {
         auth: {
           token: localStorage.getItem('token'),
           userId: user._id,

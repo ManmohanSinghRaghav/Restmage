@@ -4,9 +4,14 @@ Loads environment variables and provides application settings
 """
 
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Union
 import os
 from functools import lru_cache
+from pathlib import Path
+
+# Get the backend directory (2 levels up from this file)
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+ENV_FILE_PATH = BACKEND_DIR / ".env"
 
 
 class Settings(BaseSettings):
@@ -32,11 +37,8 @@ class Settings(BaseSettings):
     # CORS Configuration
     CLIENT_URL: str = "http://localhost:3000"
     CORS_ORIGINS: str = ""  # Comma-separated origins from Vercel
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ]
-    ALLOWED_HOSTS: List[str] = ["*"]
+    ALLOWED_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://127.0.0.1:3000"
+    ALLOWED_HOSTS: Union[str, List[str]] = "*"
     ALLOW_ALL_ORIGINS: bool = False
     
     # Rate Limiting
@@ -63,14 +65,20 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FILE: str = "logs/app.log"
     
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
-        
+    model_config = {
+        "env_file": str(ENV_FILE_PATH),
+        "case_sensitive": True,
+        "extra": "ignore"
+    }
+    
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         
-        # Parse CORS_ORIGINS from Vercel environment variable
+        # Convert ALLOWED_HOSTS to list if string
+        if isinstance(self.ALLOWED_HOSTS, str):
+            self.ALLOWED_HOSTS = [h.strip() for h in self.ALLOWED_HOSTS.split(",") if h.strip()]
+        
+        # Parse CORS_ORIGINS from Vercel environment variable (takes priority)
         if self.CORS_ORIGINS:
             cors_list = [
                 origin.strip() 
