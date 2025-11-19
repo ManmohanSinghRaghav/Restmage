@@ -30,6 +30,10 @@ const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 100;
 
 const app = express();
+
+// Trust proxy for accurate IP detection behind reverse proxies (e.g., Railway)
+app.set('trust proxy', true);
+
 const server = http.createServer(app);
 
 const io = socketIo(server, {
