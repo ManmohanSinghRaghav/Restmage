@@ -88,17 +88,21 @@ router.post('/', auth, [
     .isLength({ max: 500 })
     .withMessage('Description must be less than 500 characters'),
   body('propertyDetails.type')
+    .optional()
     .isIn(['residential', 'commercial', 'industrial', 'mixed-use'])
     .withMessage('Invalid property type'),
   body('propertyDetails.dimensions.length')
+    .optional()
     .isNumeric()
     .isFloat({ min: 0 })
     .withMessage('Length must be a positive number'),
   body('propertyDetails.dimensions.width')
+    .optional()
     .isNumeric()
     .isFloat({ min: 0 })
     .withMessage('Width must be a positive number'),
   body('propertyDetails.dimensions.height')
+    .optional()
     .isNumeric()
     .isFloat({ min: 0 })
     .withMessage('Height must be a positive number')
@@ -106,26 +110,48 @@ router.post('/', auth, [
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
+      console.error('Validation errors:', errors.array());
+      return res.status(400).json({ 
+        message: 'Validation failed',
+        errors: errors.array() 
+      });
     }
 
+    // Ensure propertyDetails has default structure if not provided
     const projectData = {
       ...req.body,
-      owner: req.user._id
+      owner: req.user._id,
+      propertyDetails: {
+        type: req.body.propertyDetails?.type || 'residential',
+        dimensions: {
+          length: req.body.propertyDetails?.dimensions?.length || 0,
+          width: req.body.propertyDetails?.dimensions?.width || 0,
+          height: req.body.propertyDetails?.dimensions?.height || 0,
+          unit: req.body.propertyDetails?.dimensions?.unit || 'feet'
+        },
+        materials: req.body.propertyDetails?.materials || []
+      }
     };
+
+    console.log('Creating project with data:', JSON.stringify(projectData, null, 2));
 
     const project = new Project(projectData);
     await project.save();
 
     await project.populate('owner', 'username email');
 
+    console.log('✅ Project created successfully:', project._id);
+
     res.status(201).json({
       message: 'Project created successfully',
       project
     });
   } catch (error) {
-    console.error('Create project error:', error);
-    res.status(500).json({ message: 'Server error during project creation' });
+    console.error('❌ Create project error:', error);
+    res.status(500).json({ 
+      message: 'Server error during project creation',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

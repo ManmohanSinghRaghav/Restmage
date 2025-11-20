@@ -15,7 +15,7 @@ import {
   Edit as EditIcon,
   Calculate as CalculateIcon,
 } from '@mui/icons-material';
-import InteractiveMap from '../Map/InteractiveMap';
+import MapEditor from '../MapEditor/MapEditor';
 import { Project } from '../../types';
 import { projectsAPI, costAPI } from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -234,19 +234,14 @@ const SimpleProjectView: React.FC = () => {
           </Paper>
         )}
 
-        {/* Interactive Map */}
+        {/* Floor Plan Viewer */}
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Property Map</Typography>
-          <Box sx={{ height: 500, border: '1px solid #ddd', borderRadius: 1 }}>
-            <InteractiveMap
-              center={[project.mapData.center.lat, project.mapData.center.lng]}
-              zoom={project.mapData.zoom}
-              layers={project.mapData.layers}
-              editable={false}
-            />
+          <Typography variant="h6" gutterBottom>Floor Plan</Typography>
+          <Box sx={{ height: 600, border: '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
+            <MapEditor />
           </Box>
           <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-            Map layers: {project.mapData.layers.length}
+            Floor plan editor
           </Typography>
         </Paper>
       </Box>

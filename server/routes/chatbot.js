@@ -1,13 +1,27 @@
 const express = require('express');
+const axios = require('axios');
 const { auth } = require('../middleware/auth');
 
 const router = express.Router();
 
 /**
  * Chatbot for Real Estate Assistance
- * Uses rule-based responses with contextual understanding
- * Can be enhanced with Hugging Face API for more advanced NLP
+ * Uses OpenAI ChatGPT API for intelligent responses
+ * Falls back to rule-based responses if API is unavailable
  */
+
+// System prompt for ChatGPT
+const SYSTEM_PROMPT = `You are a smart, friendly real estate assistant specializing in the Indian subcontinent (India, Pakistan, Bangladesh, Nepal, Sri Lanka, Bhutan). Tailor answers to local context: use common units (sq ft / sq m), default to INR for price examples unless user specifies another local currency, and use local real-estate terms (e.g., BHK, builder-floor, independent house, plot, FAR, RERA where applicable).
+
+Key focus areas:
+- Floor plan design & layout optimization for Indian homes (consider Vastu preferences if asked)
+- Price estimation and market drivers (location, carpet vs super built-up area, amenities, city/region variance)
+- Room sizes, typical measurements, and efficient use of space in Indian housing
+- Construction materials & monsoon/heat-resilient design, rainwater harvesting, solar options
+- Local compliance hints (approvals, RERA mentions) — do not give legal/financial advice; recommend consulting local experts
+- Ask clarifying questions: city/state, budget, total area, number of BHKs, and priority features
+
+Keep responses concise (under 200 words) unless the user requests more detail. Be practical, culturally aware, and ask follow-up questions to refine recommendations.`;
 
 // Knowledge base for real estate chatbot
 const KNOWLEDGE_BASE = {
@@ -52,9 +66,46 @@ const KNOWLEDGE_BASE = {
 };
 
 /**
- * Analyze user message and generate appropriate response
+ * Generate chatbot response using OpenAI ChatGPT API
  */
-function generateChatbotResponse(message) {
+async function generateChatGPTResponse(message) {
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+  if (!OPENAI_API_KEY) {
+    throw new Error('OpenAI API key not configured');
+  }
+
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('OpenAI API Error:', error.response?.data || error.message);
+    throw error;
+  }
+}
+
+/**
+ * Fallback function for rule-based responses
+ */
+function generateFallbackResponse(message) {
   const lowerMessage = message.toLowerCase();
 
   // Check for greetings
@@ -111,14 +162,27 @@ router.post('/message', auth, async (req, res) => {
       return res.status(400).json({ message: 'Message is required' });
     }
 
-    // Generate response
-    const response = generateChatbotResponse(message);
+    let response;
+    let source = 'chatgpt';
+
+    try {
+      // Try to use ChatGPT API first
+      console.log('Attempting to use ChatGPT API...');
+      response = await generateChatGPTResponse(message);
+      console.log('✅ ChatGPT API responded successfully');
+    } catch (error) {
+      // Fallback to rule-based if ChatGPT fails
+      console.warn('⚠️  ChatGPT unavailable, using fallback:', error.message);
+      response = generateFallbackResponse(message);
+      source = 'rule-based';
+    }
 
     res.json({
       success: true,
       conversationId: conversationId || `conv_${Date.now()}`,
       userMessage: message,
       botResponse: response,
+      source,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

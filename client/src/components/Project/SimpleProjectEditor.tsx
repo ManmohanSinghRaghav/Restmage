@@ -27,7 +27,7 @@ import {
   Delete as DeleteIcon,
   Calculate as CalculateIcon,
 } from '@mui/icons-material';
-import InteractiveMap from '../Map/InteractiveMap';
+import MapEditor from '../MapEditor/MapEditor';
 import { Project } from '../../types';
 import { projectsAPI, costAPI } from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -80,17 +80,29 @@ const SimpleProjectEditor: React.FC = () => {
   });
 
   const loadProject = useCallback(async () => {
+    // Safety check: don't try to load "new" projects
+    if (isNewProject || id === 'new') {
+      console.log('📝 Creating new project - skipping load');
+      return;
+    }
+    
     try {
       setLoading(true);
+      console.log('📥 Loading project:', id);
       const projectData = await projectsAPI.getProject(id!);
       setProject(projectData);
-    } catch (error) {
-      showNotification('Failed to load project', 'error');
+      console.log('✅ Project loaded successfully:', projectData.name);
+    } catch (error: any) {
+      console.error('❌ Failed to load project:', error);
+      showNotification(
+        `Failed to load project: ${error.response?.data?.message || error.message || 'Unknown error'}`, 
+        'error'
+      );
       navigate('/dashboard');
     } finally {
       setLoading(false);
     }
-  }, [id, showNotification, navigate]);
+  }, [id, isNewProject, showNotification, navigate]);
 
   useEffect(() => {
     if (!isNewProject) {
@@ -103,17 +115,27 @@ const SimpleProjectEditor: React.FC = () => {
       setSaving(true);
       
       if (isNewProject) {
+        console.log('💾 Creating new project:', project.name);
+        console.log('Project data:', JSON.stringify(project, null, 2));
         const savedProject = await projectsAPI.createProject(project);
         setProject(savedProject);
+        console.log('✅ Project created:', savedProject._id);
         showNotification('Project created successfully', 'success');
         navigate(`/project/${savedProject._id}/edit`);
       } else {
+        console.log('💾 Updating project:', project._id);
         const updatedProject = await projectsAPI.updateProject(project._id!, project);
         setProject(updatedProject);
+        console.log('✅ Project updated:', updatedProject._id);
         showNotification('Project saved successfully', 'success');
       }
-    } catch (error) {
-      showNotification('Failed to save project', 'error');
+    } catch (error: any) {
+      console.error('❌ Save failed:', error);
+      const errorMessage = error.response?.data?.message 
+        || error.response?.data?.errors?.[0]?.msg
+        || error.message 
+        || 'Unknown error';
+      showNotification(`Failed to save project: ${errorMessage}`, 'error');
     } finally {
       setSaving(false);
     }
@@ -437,38 +459,11 @@ const SimpleProjectEditor: React.FC = () => {
           </TableContainer>
         </Paper>
 
-        {/* Interactive Map */}
+        {/* Floor Plan Editor */}
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Interactive Map</Typography>
-          <Box sx={{ height: 500, border: '1px solid #ddd', borderRadius: 1 }}>
-            <InteractiveMap
-              center={[project.mapData?.center?.lat || 40.7128, project.mapData?.center?.lng || -74.0060]}
-              zoom={project.mapData?.zoom || 13}
-              layers={project.mapData?.layers || []}
-              onLayerAdd={(layer) => setProject(prev => ({
-                ...prev,
-                mapData: {
-                  ...prev.mapData!,
-                  layers: [...prev.mapData!.layers, layer]
-                }
-              }))}
-              onLayerDelete={(layerId) => setProject(prev => ({
-                ...prev,
-                mapData: {
-                  ...prev.mapData!,
-                  layers: prev.mapData!.layers.filter(l => l.id !== layerId)
-                }
-              }))}
-              onMapUpdate={(center, zoom) => setProject(prev => ({
-                ...prev,
-                mapData: {
-                  ...prev.mapData!,
-                  center: { lat: center[0], lng: center[1] },
-                  zoom
-                }
-              }))}
-              editable={true}
-            />
+          <Typography variant="h6" gutterBottom>Floor Plan Editor</Typography>
+          <Box sx={{ height: 600, border: '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
+            <MapEditor />
           </Box>
           <Alert severity="info" sx={{ mt: 2 }}>
             Use the drawing tools to add markers and shapes to your property map.

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   Box,
   Paper,
@@ -7,15 +8,12 @@ import {
   IconButton,
   List,
   ListItem,
-  Avatar,
   Chip
 } from '@mui/material';
 import {
   Send as SendIcon,
   SmartToy as BotIcon,
-  Person as PersonIcon
 } from '@mui/icons-material';
-import api from '../../services/api';
 
 interface Message {
   id: string;
@@ -28,14 +26,13 @@ const Chatbot: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: 'Hello! I\'m your real estate assistant. I can help you with:\n\n• Generating floor plans\n• Estimating property prices\n• Room size recommendations\n• Design tips and advice\n\nWhat would you like to know?',
+      text: 'Hey! I\'m your Real Estate AI Assistant. How can I help?',
       sender: 'bot',
       timestamp: new Date()
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [conversationId] = useState(`conv_${Date.now()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -57,27 +54,56 @@ const Chatbot: React.FC = () => {
     };
 
     setMessages([...messages, userMessage]);
+    const currentInput = inputMessage;
     setInputMessage('');
     setLoading(true);
 
     try {
-      const response = await api.post('/chatbot/message', {
-        message: inputMessage,
-        conversationId
+      // Call OpenAI Chat Completions API
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a smart and friendly real estate assistant. You answer clearly, understand casual chat, and give helpful property/location, pricing, floor plan, and design suggestions with concise explanations.'
+            },
+            {
+              role: 'user',
+              content: currentInput
+            }
+          ],
+          temperature: 0.7
+        })
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('OpenAI API error:', response.status, errorText);
+        throw new Error('OpenAI API error');
+      }
+
+      const data = await response.json();
+      const botReply = data.choices?.[0]?.message?.content?.trim() || 'Hmm, I\'m thinking…';
 
       const botMessage: Message = {
         id: `bot_${Date.now()}`,
-        text: response.data.botResponse,
+        text: botReply,
         sender: 'bot',
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
+      console.error(error);
       const errorMessage: Message = {
         id: `error_${Date.now()}`,
-        text: 'Sorry, I\'m having trouble responding right now. Please try again.',
+        text: 'I ran into an issue. Please try again.',
         sender: 'bot',
         timestamp: new Date()
       };
@@ -97,8 +123,8 @@ const Chatbot: React.FC = () => {
   const quickQuestions = [
     'Generate a floor plan for 3 bedroom house',
     'What is the price of a 2000 sq ft house?',
-    'What are standard room sizes?',
-    'Give me design tips'
+    'What are the best materials for sustainable construction?',
+    'Give me design tips for modern homes'
   ];
 
   const handleQuickQuestion = (question: string) => {
@@ -122,62 +148,48 @@ const Chatbot: React.FC = () => {
         </Box>
 
         {/* Messages */}
-        <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: '#f5f5f5' }}>
+        <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: '#fafafa' }}>
           <List>
             {messages.map((message) => (
-              <ListItem
+              <motion.div
                 key={message.id}
-                sx={{
-                  display: 'flex',
-                  justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
-                  mb: 1
-                }}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ type: 'spring', bounce: 0.4 }}
               >
-                <Box
+                <ListItem
                   sx={{
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    flexDirection: message.sender === 'user' ? 'row-reverse' : 'row',
-                    maxWidth: '70%'
+                    justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
+                    mb: 1
                   }}
                 >
-                  <Avatar
-                    sx={{
-                      bgcolor: message.sender === 'user' ? 'secondary.main' : 'primary.main',
-                      mx: 1
-                    }}
-                  >
-                    {message.sender === 'user' ? <PersonIcon /> : <BotIcon />}
-                  </Avatar>
                   <Paper
                     elevation={2}
                     sx={{
                       p: 2,
-                      bgcolor: message.sender === 'user' ? 'secondary.light' : 'white',
+                      maxWidth: '75%',
+                      bgcolor: message.sender === 'user' ? '#0066ff' : '#e3e3e3',
+                      color: message.sender === 'user' ? 'white' : 'black',
+                      borderRadius: '18px',
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word'
                     }}
                   >
-                    <Typography variant="body1">{message.text}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      {message.timestamp.toLocaleTimeString()}
+                    <Typography variant="body1" sx={{ fontSize: '14px' }}>
+                      {message.text}
                     </Typography>
                   </Paper>
-                </Box>
-              </ListItem>
+                </ListItem>
+              </motion.div>
             ))}
             {loading && (
               <ListItem sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Avatar sx={{ bgcolor: 'primary.main', mr: 1 }}>
-                    <BotIcon />
-                  </Avatar>
-                  <Paper elevation={2} sx={{ p: 2 }}>
-                    <Typography variant="body1" color="text.secondary">
-                      Typing...
-                    </Typography>
-                  </Paper>
-                </Box>
+                <Paper elevation={2} sx={{ p: 2, bgcolor: '#e3e3e3', borderRadius: '18px' }}>
+                  <Typography variant="body1" color="text.secondary">
+                    Typing...
+                  </Typography>
+                </Paper>
               </ListItem>
             )}
           </List>

@@ -16,6 +16,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import SimpleProjectView from './components/Project/SimpleProjectView';
 import SimpleProjectEditor from './components/Project/SimpleProjectEditor';
 import FloorPlanGenerator from './components/FloorPlan/FloorPlanGenerator';
+import MapEditor from './components/MapEditor/MapEditor';
 import PricePrediction from './components/PricePrediction/PricePrediction';
 import Chatbot from './components/Chatbot/Chatbot';
 
@@ -91,6 +92,30 @@ const AuthenticatedRoutes: React.FC = () => {
             element={
               <ProtectedRoute>
                 <FloorPlanGenerator />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/map-editor" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/map-editor/:projectId" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/editor" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
               </ProtectedRoute>
             } 
           />

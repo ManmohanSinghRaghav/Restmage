@@ -72,7 +72,7 @@ const Dashboard: React.FC = () => {
   };
 
   const navigateToNewProject = () => {
-    navigate('/project/new');
+    navigate('/project/new/edit');
   };
 
   const navigateToProject = (projectId: string) => {

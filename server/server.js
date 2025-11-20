@@ -32,7 +32,8 @@ const RATE_LIMIT_MAX_REQUESTS = 100;
 const app = express();
 
 // Trust proxy for accurate IP detection behind reverse proxies (e.g., Railway)
-app.set('trust proxy', 1);
+const isProduction = process.env.NODE_ENV === 'production';
+app.set('trust proxy', isProduction ? 1 : false);
 
 const server = http.createServer(app);
 
@@ -70,6 +71,17 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+  console.log(`\n📨 ${req.method} ${req.url}`);
+  console.log('Origin:', req.headers.origin || 'No origin');
+  console.log('Content-Type:', req.headers['content-type'] || 'No content-type');
+  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+  }
+  next();
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);

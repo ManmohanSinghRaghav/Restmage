@@ -1,5 +1,6 @@
 const express = require('express');
 const { auth } = require('../middleware/auth');
+const { generateFloorPlan } = require('../services/geminiFloorPlan');
 
 const router = express.Router();
 
@@ -228,6 +229,31 @@ router.get('/room-types', (req, res) => {
   ];
 
   res.json({ roomTypes });
+});
+
+/**
+ * POST /api/floorplan/generate-ai
+ * Generate floor plan using Gemini AI
+ */
+router.post('/generate-ai', auth, async (req, res) => {
+  try {
+    console.log('Generating AI floor plan with inputs:', req.body);
+
+    const floorPlan = await generateFloorPlan(req.body);
+
+    res.json({
+      success: true,
+      message: 'AI floor plan generated successfully',
+      floorPlan,
+    });
+  } catch (error) {
+    console.error('AI floor plan generation error:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate AI floor plan',
+      error: error.message,
+    });
+  }
 });
 
 module.exports = router;
