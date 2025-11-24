@@ -96,6 +96,22 @@ const AuthenticatedRoutes: React.FC = () => {
             } 
           />
           <Route 
+            path="/floorplan/:projectId" 
+            element={
+              <ProtectedRoute>
+                <FloorPlanGenerator />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/floorplans/:id/edit" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/map-editor" 
             element={
               <ProtectedRoute>
@@ -121,6 +137,30 @@ const AuthenticatedRoutes: React.FC = () => {
           />
           <Route 
             path="/price-prediction" 
+            element={
+              <ProtectedRoute>
+                <PricePrediction />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/price-prediction/:projectId" 
+            element={
+              <ProtectedRoute>
+                <PricePrediction />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/price-prediction/:projectId/:floorPlanId" 
+            element={
+              <ProtectedRoute>
+                <PricePrediction />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/cost-estimates/:id/edit" 
             element={
               <ProtectedRoute>
                 <PricePrediction />

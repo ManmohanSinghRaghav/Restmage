@@ -11,11 +11,12 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
 const costRoutes = require('./routes/cost');
-const mapRoutes = require('./routes/maps');
 const exportRoutes = require('./routes/export');
-const floorplanRoutes = require('./routes/floorplan');
 const pricePredictionRoutes = require('./routes/price-prediction');
 const chatbotRoutes = require('./routes/chatbot');
+// New RESTful routes for 3-dataset architecture
+const floorplansRoutes = require('./routes/floorplans');
+const costEstimatesRoutes = require('./routes/cost-estimates');
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/restmage';
@@ -72,6 +73,9 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Make Socket.IO available to routes
+app.set('io', io);
+
 // Request logging middleware for debugging
 app.use((req, res, next) => {
   console.log(`\n📨 ${req.method} ${req.url}`);
@@ -86,11 +90,12 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/cost', costRoutes);
-app.use('/api/maps', mapRoutes);
 app.use('/api/export', exportRoutes);
-app.use('/api/floorplan', floorplanRoutes);
 app.use('/api/price-prediction', pricePredictionRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+// New RESTful routes
+app.use('/api/floorplans', floorplansRoutes);
+app.use('/api/cost-estimates', costEstimatesRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({ 

@@ -10,14 +10,22 @@ import {
   Divider,
   CircularProgress,
   Alert,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Calculate as CalculateIcon,
+  CheckCircle as ActiveIcon,
+  Add as AddIcon,
+  Visibility as ViewIcon,
 } from '@mui/icons-material';
-import MapEditor from '../MapEditor/MapEditor';
-import { Project } from '../../types';
-import { projectsAPI, costAPI } from '../../services/api';
+import { Project, CostEstimate } from '../../types';
+import { FloorPlan } from '../../types/floorPlan.types';
+import { projectsAPI, floorPlansAPI, costEstimatesAPI } from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
 
 const SimpleProjectView: React.FC = () => {
@@ -26,21 +34,52 @@ const SimpleProjectView: React.FC = () => {
   const { showNotification } = useNotification();
 
   const [project, setProject] = useState<Project | null>(null);
+  const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
+  const [costEstimates, setCostEstimates] = useState<CostEstimate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [calculating, setCalculating] = useState(false);
+  const [loadingFloorPlans, setLoadingFloorPlans] = useState(false);
+  const [loadingCostEstimates, setLoadingCostEstimates] = useState(false);
+
+  const loadFloorPlans = useCallback(async () => {
+    try {
+      setLoadingFloorPlans(true);
+      const plans = await floorPlansAPI.list(id!);
+      setFloorPlans(plans);
+    } catch (error) {
+      console.error('Failed to load floor plans:', error);
+    } finally {
+      setLoadingFloorPlans(false);
+    }
+  }, [id]);
+
+  const loadCostEstimates = useCallback(async () => {
+    try {
+      setLoadingCostEstimates(true);
+      const estimates = await costEstimatesAPI.list(id!);
+      setCostEstimates(estimates);
+    } catch (error) {
+      console.error('Failed to load cost estimates:', error);
+    } finally {
+      setLoadingCostEstimates(false);
+    }
+  }, [id]);
 
   const loadProject = useCallback(async () => {
     try {
       setLoading(true);
       const projectData = await projectsAPI.getProject(id!);
       setProject(projectData);
+      
+      // Load floor plans and cost estimates
+      loadFloorPlans();
+      loadCostEstimates();
     } catch (error) {
       showNotification('Failed to load project', 'error');
       navigate('/dashboard');
     } finally {
       setLoading(false);
     }
-  }, [id, showNotification, navigate]);
+  }, [id, showNotification, navigate, loadFloorPlans, loadCostEstimates]);
 
   useEffect(() => {
     if (id) {
@@ -48,19 +87,35 @@ const SimpleProjectView: React.FC = () => {
     }
   }, [id, loadProject]);
 
-  const handleCalculateCost = async () => {
-    if (!project) return;
-
+  const handleActivateFloorPlan = async (floorPlanId: string) => {
     try {
-      setCalculating(true);
-      const costEstimation = await costAPI.calculateCost(project._id);
-      setProject(prev => prev ? { ...prev, costEstimation } : null);
-      showNotification('Cost estimation updated successfully', 'success');
+      await floorPlansAPI.activate(floorPlanId);
+      showNotification('Floor plan activated successfully', 'success');
+      loadProject();
+      loadFloorPlans();
     } catch (error) {
-      showNotification('Failed to calculate cost', 'error');
-    } finally {
-      setCalculating(false);
+      showNotification('Failed to activate floor plan', 'error');
     }
+  };
+
+  const handleActivateCostEstimate = async (estimateId: string) => {
+    try {
+      await costEstimatesAPI.activate(estimateId);
+      showNotification('Cost estimate activated successfully', 'success');
+      loadProject();
+      loadCostEstimates();
+    } catch (error) {
+      showNotification('Failed to activate cost estimate', 'error');
+    }
+  };
+
+  const formatCurrency = (amount: number, currency: string = 'INR') => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   const getStatusColor = (status: string) => {
@@ -174,39 +229,49 @@ const SimpleProjectView: React.FC = () => {
 
           <Paper sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Cost Estimation</Typography>
+              <Typography variant="h6">Active Cost Estimate</Typography>
               <Button
                 variant="outlined"
                 size="small"
-                startIcon={calculating ? <CircularProgress size={16} /> : <CalculateIcon />}
-                onClick={handleCalculateCost}
-                disabled={calculating}
+                startIcon={<AddIcon />}
+                onClick={() => navigate(`/price-prediction/${project._id}`)}
               >
-                {calculating ? 'Calculating...' : 'Calculate'}
+                Calculate New
               </Button>
             </Box>
             
-            {project.costEstimation ? (
+            {project.activeCostEstimate ? (
               <Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2">Materials:</Typography>
-                  <Typography variant="body2">${project.costEstimation.materials.toLocaleString()}</Typography>
+                  <Typography variant="body2">{formatCurrency(project.activeCostEstimate.materials, project.activeCostEstimate.currency)}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                   <Typography variant="body2">Labor:</Typography>
-                  <Typography variant="body2">${project.costEstimation.labor.toLocaleString()}</Typography>
+                  <Typography variant="body2">{formatCurrency(project.activeCostEstimate.labor, project.activeCostEstimate.currency)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Equipment:</Typography>
+                  <Typography variant="body2">{formatCurrency(project.activeCostEstimate.equipment, project.activeCostEstimate.currency)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Permits:</Typography>
+                  <Typography variant="body2">{formatCurrency(project.activeCostEstimate.permits, project.activeCostEstimate.currency)}</Typography>
                 </Box>
                 <Divider sx={{ my: 1 }} />
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="h6">Total:</Typography>
                   <Typography variant="h6" color="primary">
-                    ${project.costEstimation.total.toLocaleString()}
+                    {formatCurrency(project.activeCostEstimate.total, project.activeCostEstimate.currency)}
                   </Typography>
                 </Box>
+                <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                  Version {project.activeCostEstimate.version} • {formatDate(project.activeCostEstimate.calculatedAt)}
+                </Typography>
               </Box>
             ) : (
               <Alert severity="info">
-                Click "Calculate" to generate cost estimation
+                No cost estimate calculated yet
               </Alert>
             )}
           </Paper>
@@ -234,15 +299,149 @@ const SimpleProjectView: React.FC = () => {
           </Paper>
         )}
 
-        {/* Floor Plan Viewer */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Floor Plan</Typography>
-          <Box sx={{ height: 600, border: '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
-            <MapEditor />
+        {/* Floor Plans */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Floor Plans ({floorPlans.length})</Typography>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => navigate(`/floorplan/${project._id}`)}
+            >
+              Generate New
+            </Button>
           </Box>
-          <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-            Floor plan editor
-          </Typography>
+          
+          {loadingFloorPlans ? (
+            <CircularProgress size={24} />
+          ) : floorPlans.length > 0 ? (
+            <List>
+              {floorPlans.map((plan) => (
+                <ListItem
+                  key={plan._id}
+                  sx={{
+                    border: '1px solid #ddd',
+                    borderRadius: 1,
+                    mb: 1,
+                    bgcolor: plan.isActive ? 'action.selected' : 'background.paper',
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {plan.name || `Floor Plan v${plan.version}`}
+                        {plan.isActive && (
+                          <Chip
+                            label="Active"
+                            size="small"
+                            color="success"
+                            icon={<ActiveIcon />}
+                          />
+                        )}
+                        <Chip
+                          label={plan.generatedBy === 'ai' ? 'AI Generated' : 'Manual'}
+                          size="small"
+                          variant="outlined"
+                        />
+                      </Box>
+                    }
+                    secondary={`Version ${plan.version} • Created ${formatDate(plan.createdAt)}`}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      onClick={() => navigate(`/floorplans/${plan._id}/edit`)}
+                      sx={{ mr: 1 }}
+                    >
+                      <ViewIcon />
+                    </IconButton>
+                    {!plan.isActive && (
+                      <Button
+                        size="small"
+                        onClick={() => handleActivateFloorPlan(plan._id)}
+                      >
+                        Activate
+                      </Button>
+                    )}
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Alert severity="info">
+              No floor plans yet. Click "Generate New" to create one.
+            </Alert>
+          )}
+        </Paper>
+
+        {/* Cost Estimates */}
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Cost Estimates ({costEstimates.length})</Typography>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<CalculateIcon />}
+              onClick={() => navigate(`/price-prediction/${project._id}`)}
+            >
+              Calculate New
+            </Button>
+          </Box>
+          
+          {loadingCostEstimates ? (
+            <CircularProgress size={24} />
+          ) : costEstimates.length > 0 ? (
+            <List>
+              {costEstimates.map((estimate) => (
+                <ListItem
+                  key={estimate._id}
+                  sx={{
+                    border: '1px solid #ddd',
+                    borderRadius: 1,
+                    mb: 1,
+                    bgcolor: estimate.isActive ? 'action.selected' : 'background.paper',
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {estimate.name || `Cost Estimate v${estimate.version}`}
+                        {estimate.isActive && (
+                          <Chip
+                            label="Active"
+                            size="small"
+                            color="success"
+                            icon={<ActiveIcon />}
+                          />
+                        )}
+                        <Chip
+                          label={formatCurrency(estimate.total, estimate.currency)}
+                          size="small"
+                          color="primary"
+                        />
+                      </Box>
+                    }
+                    secondary={`Version ${estimate.version} • ${estimate.calculationMethod} • ${formatDate(estimate.calculatedAt)}`}
+                  />
+                  <ListItemSecondaryAction>
+                    {!estimate.isActive && (
+                      <Button
+                        size="small"
+                        onClick={() => handleActivateCostEstimate(estimate._id)}
+                      >
+                        Activate
+                      </Button>
+                    )}
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          ) : (
+            <Alert severity="info">
+              No cost estimates yet. Click "Calculate New" to create one.
+            </Alert>
+          )}
         </Paper>
       </Box>
     </Container>

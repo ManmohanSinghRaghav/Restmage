@@ -1,5 +1,13 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import styles from './MapEditor.module.css';
+import {
+  Box, Paper, Typography, Button, IconButton, Tooltip, Select, MenuItem,
+  TextField, Tabs, Tab, Divider, List, ListItem, ListItemText, ListItemIcon,
+  AppBar, Toolbar, Grid, FormControl, InputLabel, ListItemButton
+} from '@mui/material';
+import {
+  Undo, Redo, ZoomIn, ZoomOut, GridOn, Delete, Check, Home, Window as WindowIcon,
+  CropSquare, Timeline, DoorFront, Chair, Download, Upload, AutoAwesome
+} from '@mui/icons-material';
 import { useNotification } from '../../contexts/NotificationContext';
 import FloorPlanGeneratorDialog from './FloorPlanGeneratorDialog';
 
@@ -200,7 +208,7 @@ const MapEditor: React.FC = () => {
   };
 
   // Drawing functions
-  const drawGrid = (ctx: CanvasRenderingContext2D) => {
+  const drawGrid = useCallback((ctx: CanvasRenderingContext2D) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -220,9 +228,9 @@ const MapEditor: React.FC = () => {
       ctx.lineTo(canvas.width, y);
       ctx.stroke();
     }
-  };
+  }, [state]);
 
-  const drawPlotBoundary = (ctx: CanvasRenderingContext2D) => {
+  const drawPlotBoundary = useCallback((ctx: CanvasRenderingContext2D) => {
     const { plot_length_ft, plot_width_ft, setback_front_ft, setback_rear_ft, setback_side_left_ft, setback_side_right_ft } = state.plotSummary;
 
     // Outer boundary
@@ -240,9 +248,9 @@ const MapEditor: React.FC = () => {
     const btl = feetToScreen(setback_side_left_ft, setback_front_ft);
     const bbr = feetToScreen(plot_width_ft - setback_side_right_ft, plot_length_ft - setback_rear_ft);
     ctx.strokeRect(btl.x, btl.y, bbr.x - btl.x, bbr.y - btl.y);
-  };
+  }, [state.plotSummary, feetToScreen]);
 
-  const drawRoom = (ctx: CanvasRenderingContext2D, room: Room, selected: boolean) => {
+  const drawRoom = useCallback((ctx: CanvasRenderingContext2D, room: Room, selected: boolean) => {
     if (!room.polygon || room.polygon.length < 3) return;
 
     const color = ROOM_COLORS[room.type] || ROOM_COLORS.other;
@@ -270,9 +278,9 @@ const MapEditor: React.FC = () => {
     ctx.font = `${12 * state.zoom}px Arial`;
     ctx.textAlign = 'center';
     ctx.fillText(room.name, center.x, center.y);
-  };
+  }, [state.zoom, feetToScreen]);
 
-  const drawWall = (ctx: CanvasRenderingContext2D, wall: Wall, selected: boolean) => {
+  const drawWall = useCallback((ctx: CanvasRenderingContext2D, wall: Wall, selected: boolean) => {
     if (!wall || !wall.start || !wall.end) return;
 
     const start = feetToScreen(wall.start.x_ft, wall.start.y_ft);
@@ -286,9 +294,9 @@ const MapEditor: React.FC = () => {
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(end.x, end.y);
     ctx.stroke();
-  };
+  }, [state.scale, state.zoom, feetToScreen]);
 
-  const drawDoor = (ctx: CanvasRenderingContext2D, door: Door, selected: boolean) => {
+  const drawDoor = useCallback((ctx: CanvasRenderingContext2D, door: Door, selected: boolean) => {
     if (!door || !door.position) return;
 
     const pos = feetToScreen(door.position.x_ft, door.position.y_ft);
@@ -300,9 +308,9 @@ const MapEditor: React.FC = () => {
     ctx.strokeStyle = '#6c3483';
     ctx.lineWidth = 2;
     ctx.strokeRect(pos.x - width / 2, pos.y - 5, width, 10);
-  };
+  }, [state.scale, state.zoom, feetToScreen]);
 
-  const drawWindow = (ctx: CanvasRenderingContext2D, window: Window, selected: boolean) => {
+  const drawWindow = useCallback((ctx: CanvasRenderingContext2D, window: Window, selected: boolean) => {
     if (!window || !window.position) return;
 
     const pos = feetToScreen(window.position.x_ft, window.position.y_ft);
@@ -314,9 +322,9 @@ const MapEditor: React.FC = () => {
     ctx.strokeStyle = '#1565C0';
     ctx.lineWidth = 2;
     ctx.strokeRect(pos.x - width / 2, pos.y - 5, width, 10);
-  };
+  }, [state.scale, state.zoom, feetToScreen]);
 
-  const drawFixture = (ctx: CanvasRenderingContext2D, fixture: Fixture, selected: boolean) => {
+  const drawFixture = useCallback((ctx: CanvasRenderingContext2D, fixture: Fixture, selected: boolean) => {
     if (!fixture || !fixture.position) return;
 
     const pos = feetToScreen(fixture.position.x_ft, fixture.position.y_ft);
@@ -338,7 +346,7 @@ const MapEditor: React.FC = () => {
     ctx.textBaseline = 'middle';
     ctx.fillText(fixture.type.substring(0, 2).toUpperCase(), 0, 0);
     ctx.restore();
-  };
+  }, [state.zoom, feetToScreen]);
 
   // Main render function
   const renderCanvas = useCallback(() => {
@@ -400,7 +408,7 @@ const MapEditor: React.FC = () => {
       ctx.stroke();
       ctx.setLineDash([]);
     }
-  }, [state, selectedElement, activeTool, isDrawing, drawingPoints, tempStart, feetToScreen]);
+  }, [state, selectedElement, activeTool, isDrawing, drawingPoints, tempStart, feetToScreen, drawGrid, drawPlotBoundary, drawRoom, drawWall, drawDoor, drawWindow, drawFixture]);
 
   useEffect(() => {
     renderCanvas();
@@ -719,397 +727,418 @@ const MapEditor: React.FC = () => {
   const coverage = plotArea > 0 ? ((totalBuiltUpArea / plotArea) * 100).toFixed(1) : '0';
 
   return (
-    <div className={styles.container}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', bgcolor: 'background.default' }}>
       {/* Toolbar */}
-      <header className={styles.toolbar}>
-        <div className={styles.toolbarSection}>
-          <h1>
-            <svg className={styles.logoIcon} width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+      <AppBar position="static" color="default" elevation={1} sx={{ zIndex: 1201 }}>
+        <Toolbar variant="dense">
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Home fontSize="small" />
             Floor Plan Editor
-          </h1>
-          <span className={styles.version}>v2.0</span>
-        </div>
-        <div className={styles.toolbarSection}>
-          <button 
-            className={styles.btnIcon} 
-            title="Undo (Ctrl+Z)" 
-            disabled={historyIndex <= 0}
-            onClick={undo}
-          >
-            ↶
-          </button>
-          <button 
-            className={styles.btnIcon} 
-            title="Redo (Ctrl+Y)" 
-            disabled={historyIndex >= history.length - 1}
-            onClick={redo}
-          >
-            ↷
-          </button>
-          <div className={styles.toolbarDivider}></div>
-          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => fileInputRef.current?.click()}>
-            Import
-          </button>
-          <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleExport}>
-            Export
-          </button>
-          <div className={styles.toolbarDivider}></div>
-          <button 
-            className={`${styles.btn} ${styles.btnPrimary}`} 
-            onClick={() => setShowGeneratorDialog(true)}
-            style={{ backgroundColor: '#4CAF50' }}
-          >
-            🤖 Generate with AI
-          </button>
-          <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-        </div>
-      </header>
+            <Typography variant="caption" sx={{ bgcolor: 'action.selected', px: 1, borderRadius: 1 }}>v2.0</Typography>
+          </Typography>
+          
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Undo (Ctrl+Z)">
+              <span>
+                <IconButton onClick={undo} disabled={historyIndex <= 0} size="small">
+                  <Undo />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Redo (Ctrl+Y)">
+              <span>
+                <IconButton onClick={redo} disabled={historyIndex >= history.length - 1} size="small">
+                  <Redo />
+                </IconButton>
+              </span>
+            </Tooltip>
+            
+            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+            
+            <Button 
+              startIcon={<Upload />} 
+              onClick={() => fileInputRef.current?.click()}
+              size="small"
+            >
+              Import
+            </Button>
+            <Button 
+              startIcon={<Download />} 
+              onClick={handleExport}
+              size="small"
+            >
+              Export
+            </Button>
+            
+            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+            
+            <Button 
+              variant="contained" 
+              color="success"
+              startIcon={<AutoAwesome />}
+              onClick={() => setShowGeneratorDialog(true)}
+              size="small"
+            >
+              Generate with AI
+            </Button>
+            <input ref={fileInputRef} type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
+          </Box>
+        </Toolbar>
+      </AppBar>
 
       {/* Tools Bar */}
-      <div className={styles.toolsBar}>
-        <div className={styles.toolGroup}>
-          <button 
-            className={`${styles.toolBtn} ${activeTool === 'select' ? styles.active : ''}`}
-            onClick={() => setActiveTool('select')}
-            title="Select (V)"
-          >
-            Select
-          </button>
-          <button 
-            className={`${styles.toolBtn} ${activeTool === 'room' ? styles.active : ''}`}
-            onClick={() => setActiveTool('room')}
-            title="Draw Room (R)"
-          >
-            Room
-          </button>
-          <button 
-            className={`${styles.toolBtn} ${activeTool === 'wall' ? styles.active : ''}`}
-            onClick={() => setActiveTool('wall')}
-            title="Draw Wall (W)"
-          >
-            Wall
-          </button>
-          <button 
-            className={`${styles.toolBtn} ${activeTool === 'door' ? styles.active : ''}`}
-            onClick={() => setActiveTool('door')}
-            title="Add Door (D)"
-          >
-            Door
-          </button>
-          <button 
-            className={`${styles.toolBtn} ${activeTool === 'window' ? styles.active : ''}`}
-            onClick={() => setActiveTool('window')}
-            title="Add Window (N)"
-          >
-            Window
-          </button>
-          <button 
-            className={`${styles.toolBtn} ${activeTool === 'fixture' ? styles.active : ''}`}
-            onClick={() => setActiveTool('fixture')}
-            title="Add Fixture (F)"
-          >
-            Fixture
-          </button>
-        </div>
-        <div className={styles.toolGroup}>
-          <button className={styles.btnIcon} title="Zoom In (+)" onClick={handleZoomIn}>+</button>
-          <button className={styles.btnIcon} title="Zoom Out (-)" onClick={handleZoomOut}>−</button>
-          <button className={styles.btnIcon} title="Fit View (F)" onClick={handleFitView}>⤢</button>
-        </div>
-      </div>
+      <Paper square elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Select (V)">
+            <Button 
+              variant={activeTool === 'select' ? 'contained' : 'outlined'} 
+              onClick={() => setActiveTool('select')}
+              size="small"
+              startIcon={<Check />}
+            >
+              Select
+            </Button>
+          </Tooltip>
+          <Tooltip title="Draw Room (R)">
+            <Button 
+              variant={activeTool === 'room' ? 'contained' : 'outlined'} 
+              onClick={() => setActiveTool('room')}
+              size="small"
+              startIcon={<CropSquare />}
+            >
+              Room
+            </Button>
+          </Tooltip>
+          <Tooltip title="Draw Wall (W)">
+            <Button 
+              variant={activeTool === 'wall' ? 'contained' : 'outlined'} 
+              onClick={() => setActiveTool('wall')}
+              size="small"
+              startIcon={<Timeline />}
+            >
+              Wall
+            </Button>
+          </Tooltip>
+          <Tooltip title="Add Door (D)">
+            <Button 
+              variant={activeTool === 'door' ? 'contained' : 'outlined'} 
+              onClick={() => setActiveTool('door')}
+              size="small"
+              startIcon={<DoorFront />}
+            >
+              Door
+            </Button>
+          </Tooltip>
+          <Tooltip title="Add Window (N)">
+            <Button 
+              variant={activeTool === 'window' ? 'contained' : 'outlined'} 
+              onClick={() => setActiveTool('window')}
+              size="small"
+              startIcon={<WindowIcon />}
+            >
+              Window
+            </Button>
+          </Tooltip>
+          <Tooltip title="Add Fixture (F)">
+            <Button 
+              variant={activeTool === 'fixture' ? 'contained' : 'outlined'} 
+              onClick={() => setActiveTool('fixture')}
+              size="small"
+              startIcon={<Chair />}
+            >
+              Fixture
+            </Button>
+          </Tooltip>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Zoom In (+)">
+            <IconButton onClick={handleZoomIn} size="small"><ZoomIn /></IconButton>
+          </Tooltip>
+          <Tooltip title="Zoom Out (-)">
+            <IconButton onClick={handleZoomOut} size="small"><ZoomOut /></IconButton>
+          </Tooltip>
+          <Tooltip title="Fit View (F)">
+            <IconButton onClick={handleFitView} size="small"><GridOn /></IconButton>
+          </Tooltip>
+        </Box>
+      </Paper>
 
       {/* Main Content */}
-      <div className={styles.content}>
-        <div className={styles.canvasContainer}>
+      <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
+        <Box sx={{ flexGrow: 1, position: 'relative', bgcolor: '#f0f0f0' }}>
           <canvas 
             ref={canvasRef} 
-            className={styles.canvas}
+            style={{ width: '100%', height: '100%', display: 'block', cursor: activeTool === 'select' ? 'default' : 'crosshair' }}
             onClick={handleCanvasClick}
             onMouseMove={handleCanvasMouseMove}
             onContextMenu={handleCanvasRightClick}
           />
-          <div className={styles.canvasInfo}>{canvasCoords}</div>
-        </div>
+          <Paper sx={{ position: 'absolute', bottom: 16, left: 16, px: 1, py: 0.5, opacity: 0.8 }}>
+            <Typography variant="caption">{canvasCoords}</Typography>
+          </Paper>
+        </Box>
 
         {/* Sidebar */}
-        <aside className={styles.sidebar}>
+        <Paper square elevation={2} sx={{ width: 320, display: 'flex', flexDirection: 'column', borderLeft: 1, borderColor: 'divider', overflowY: 'auto' }}>
           {/* Map Info Panel */}
-          <div className={styles.panel}>
-            <h3>Map Information</h3>
-            <div className={styles.formGroup}>
-              <label>Title:</label>
-              <input 
-                type="text" 
-                value={state.mapInfo.title}
-                onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, title: e.target.value } }))}
-              />
-            </div>
-            <div className={styles.formGroup}>
-              <label>Author:</label>
-              <input 
-                type="text" 
-                value={state.mapInfo.author}
-                onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, author: e.target.value } }))}
-              />
-            </div>
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label>Date:</label>
-                <input 
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <Typography variant="subtitle2" gutterBottom>Map Information</Typography>
+            <Grid container spacing={2}>
+              <Grid size={12}>
+                <TextField 
+                  label="Title" 
+                  fullWidth 
+                  size="small" 
+                  value={state.mapInfo.title}
+                  onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, title: e.target.value } }))}
+                />
+              </Grid>
+              <Grid size={12}>
+                <TextField 
+                  label="Author" 
+                  fullWidth 
+                  size="small" 
+                  value={state.mapInfo.author}
+                  onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, author: e.target.value } }))}
+                />
+              </Grid>
+              <Grid size={6}>
+                <TextField 
+                  label="Date" 
                   type="date" 
+                  fullWidth 
+                  size="small" 
+                  InputLabelProps={{ shrink: true }}
                   value={state.mapInfo.date}
                   onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, date: e.target.value } }))}
                 />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Scale:</label>
-                <input 
-                  type="text" 
+              </Grid>
+              <Grid size={6}>
+                <TextField 
+                  label="Scale" 
+                  fullWidth 
+                  size="small" 
                   value={state.mapInfo.scale}
                   onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, scale: e.target.value } }))}
                 />
-              </div>
-            </div>
-          </div>
+              </Grid>
+            </Grid>
+          </Box>
 
           {/* Plot Settings Panel */}
-          <div className={styles.panel}>
-            <h3>Plot Settings</h3>
-            <div className={styles.formRow}>
-              <div className={styles.formGroup}>
-                <label>Length (ft):</label>
-                <input 
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <Typography variant="subtitle2" gutterBottom>Plot Settings</Typography>
+            <Grid container spacing={2}>
+              <Grid size={6}>
+                <TextField 
+                  label="Length (ft)" 
                   type="number" 
+                  fullWidth 
+                  size="small" 
                   value={state.plotSummary.plot_length_ft}
                   onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, plot_length_ft: parseFloat(e.target.value) } }))}
                 />
-              </div>
-              <div className={styles.formGroup}>
-                <label>Width (ft):</label>
-                <input 
+              </Grid>
+              <Grid size={6}>
+                <TextField 
+                  label="Width (ft)" 
                   type="number" 
+                  fullWidth 
+                  size="small" 
                   value={state.plotSummary.plot_width_ft}
                   onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, plot_width_ft: parseFloat(e.target.value) } }))}
                 />
-              </div>
-            </div>
-            <div className={styles.formGroup}>
-              <label>Setbacks (ft):</label>
-              <div className={styles.setbackGrid}>
-                <input 
-                  type="number" 
-                  placeholder="Front"
-                  value={state.plotSummary.setback_front_ft}
-                  onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_front_ft: parseFloat(e.target.value) } }))}
-                  className={styles.inputCompact}
-                />
-                <input 
-                  type="number" 
-                  placeholder="Rear"
-                  value={state.plotSummary.setback_rear_ft}
-                  onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_rear_ft: parseFloat(e.target.value) } }))}
-                  className={styles.inputCompact}
-                />
-                <input 
-                  type="number" 
-                  placeholder="Left"
-                  value={state.plotSummary.setback_side_left_ft}
-                  onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_side_left_ft: parseFloat(e.target.value) } }))}
-                  className={styles.inputCompact}
-                />
-                <input 
-                  type="number" 
-                  placeholder="Right"
-                  value={state.plotSummary.setback_side_right_ft}
-                  onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_side_right_ft: parseFloat(e.target.value) } }))}
-                  className={styles.inputCompact}
-                />
-              </div>
-            </div>
-          </div>
+              </Grid>
+              <Grid size={12}>
+                <Typography variant="caption" color="textSecondary">Setbacks (ft)</Typography>
+                <Grid container spacing={1}>
+                  <Grid size={3}>
+                    <TextField 
+                      label="Front" 
+                      type="number" 
+                      size="small" 
+                      value={state.plotSummary.setback_front_ft}
+                      onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_front_ft: parseFloat(e.target.value) } }))}
+                    />
+                  </Grid>
+                  <Grid size={3}>
+                    <TextField 
+                      label="Rear" 
+                      type="number" 
+                      size="small" 
+                      value={state.plotSummary.setback_rear_ft}
+                      onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_rear_ft: parseFloat(e.target.value) } }))}
+                    />
+                  </Grid>
+                  <Grid size={3}>
+                    <TextField 
+                      label="Left" 
+                      type="number" 
+                      size="small" 
+                      value={state.plotSummary.setback_side_left_ft}
+                      onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_side_left_ft: parseFloat(e.target.value) } }))}
+                    />
+                  </Grid>
+                  <Grid size={3}>
+                    <TextField 
+                      label="Right" 
+                      type="number" 
+                      size="small" 
+                      value={state.plotSummary.setback_side_right_ft}
+                      onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_side_right_ft: parseFloat(e.target.value) } }))}
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
+            </Grid>
+          </Box>
 
           {/* Summary Panel */}
-          <div className={styles.panel}>
-            <h3>Summary</h3>
-            <div className={styles.summaryGrid}>
-              <div className={styles.summaryItem}>
-                <label>Plot Area:</label>
-                <span>{plotArea.toFixed(0)} sqft</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <label>Built-up Area:</label>
-                <span>{totalBuiltUpArea.toFixed(0)} sqft</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <label>Coverage:</label>
-                <span>{coverage}%</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <label>Rooms:</label>
-                <span>{state.rooms.length}</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <label>Walls:</label>
-                <span>{state.walls.length}</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <label>Doors:</label>
-                <span>{state.doors.length}</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <label>Windows:</label>
-                <span>{state.windows.length}</span>
-              </div>
-              <div className={styles.summaryItem}>
-                <label>Fixtures:</label>
-                <span>{state.fixtures.length}</span>
-              </div>
-            </div>
-          </div>
+          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+            <Typography variant="subtitle2" gutterBottom>Summary</Typography>
+            <Grid container spacing={1}>
+              <Grid size={6}><Typography variant="body2">Plot Area: {plotArea.toFixed(0)} sqft</Typography></Grid>
+              <Grid size={6}><Typography variant="body2">Built-up: {totalBuiltUpArea.toFixed(0)} sqft</Typography></Grid>
+              <Grid size={6}><Typography variant="body2">Coverage: {coverage}%</Typography></Grid>
+              <Grid size={6}><Typography variant="body2">Rooms: {state.rooms.length}</Typography></Grid>
+            </Grid>
+          </Box>
 
           {/* Properties Panel */}
           {selectedElement && (
-            <div className={styles.panel}>
-              <h3>Properties</h3>
+            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.hover' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                <Typography variant="subtitle2">Properties</Typography>
+                <IconButton size="small" color="error" onClick={deleteSelectedElement}><Delete fontSize="small" /></IconButton>
+              </Box>
+              
               {selectedType === 'room' && (
-                <>
-                  <div className={styles.formGroup}>
-                    <label>Name:</label>
-                    <input 
-                      type="text" 
+                <Grid container spacing={2}>
+                  <Grid size={12}>
+                    <TextField 
+                      label="Name" 
+                      fullWidth 
+                      size="small" 
                       value={selectedElement.name}
                       onChange={(e) => {
                         selectedElement.name = e.target.value;
                         setState({...state});
                       }}
                     />
-                  </div>
-                  <div className={styles.formGroup}>
-                    <label>Type:</label>
-                    <select 
-                      value={selectedElement.type}
-                      onChange={(e) => {
-                        selectedElement.type = e.target.value;
-                        setState({...state});
-                      }}
-                    >
-                      {ROOM_TYPES.map(type => (
-                        <option key={type} value={type}>{type.replace('_', ' ')}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className={styles.summaryItem}>
-                    <label>Area:</label>
-                    <span>{calculatePolygonArea(selectedElement.polygon).toFixed(1)} sqft</span>
-                  </div>
-                  <button className={styles.deleteBtn} onClick={deleteSelectedElement}>Delete Room</button>
-                </>
+                  </Grid>
+                  <Grid size={12}>
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Type</InputLabel>
+                      <Select 
+                        value={selectedElement.type}
+                        label="Type"
+                        onChange={(e) => {
+                          selectedElement.type = e.target.value;
+                          setState({...state});
+                        }}
+                      >
+                        {ROOM_TYPES.map(type => (
+                          <MenuItem key={type} value={type}>{type.replace('_', ' ')}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                  <Grid size={12}>
+                    <Typography variant="body2">Area: {calculatePolygonArea(selectedElement.polygon).toFixed(1)} sqft</Typography>
+                  </Grid>
+                </Grid>
               )}
               {selectedType === 'fixture' && activeTool === 'fixture' && (
-                <div className={styles.formGroup}>
-                  <label>Fixture Type:</label>
-                  <select 
+                <FormControl fullWidth size="small">
+                  <InputLabel>Fixture Type</InputLabel>
+                  <Select 
                     value={selectedFixtureType}
+                    label="Fixture Type"
                     onChange={(e) => setSelectedFixtureType(e.target.value)}
                   >
                     {FIXTURE_TYPES.map(type => (
-                      <option key={type} value={type}>{type}</option>
+                      <MenuItem key={type} value={type}>{type}</MenuItem>
                     ))}
-                  </select>
-                </div>
+                  </Select>
+                </FormControl>
               )}
-            </div>
+            </Box>
           )}
 
           {/* Elements Panel */}
-          <div className={styles.panel}>
-            <h3>Elements</h3>
-            <div className={styles.tabs}>
-              <button 
-                className={`${styles.tabBtn} ${activeTab === 'rooms' ? styles.active : ''}`}
-                onClick={() => setActiveTab('rooms')}
-              >
-                Rooms
-              </button>
-              <button 
-                className={`${styles.tabBtn} ${activeTab === 'walls' ? styles.active : ''}`}
-                onClick={() => setActiveTab('walls')}
-              >
-                Walls
-              </button>
-              <button 
-                className={`${styles.tabBtn} ${activeTab === 'openings' ? styles.active : ''}`}
-                onClick={() => setActiveTab('openings')}
-              >
-                Openings
-              </button>
-              <button 
-                className={`${styles.tabBtn} ${activeTab === 'fixtures' ? styles.active : ''}`}
-                onClick={() => setActiveTab('fixtures')}
-              >
-                Fixtures
-              </button>
-            </div>
-            <div className={styles.elementsList}>
-              {activeTab === 'rooms' && state.rooms.length === 0 && (
-                <p className={styles.placeholder}>No rooms yet</p>
-              )}
+          <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+            <Tabs 
+              value={activeTab} 
+              onChange={(_, v) => setActiveTab(v)} 
+              variant="fullWidth" 
+              indicatorColor="primary"
+              textColor="primary"
+              sx={{ borderBottom: 1, borderColor: 'divider' }}
+            >
+              <Tab label="Rooms" value="rooms" />
+              <Tab label="Walls" value="walls" />
+              <Tab label="Openings" value="openings" />
+              <Tab label="Fixtures" value="fixtures" />
+            </Tabs>
+            
+            <List dense sx={{ flexGrow: 1, overflowY: 'auto' }}>
               {activeTab === 'rooms' && state.rooms.map(room => (
-                <div 
-                  key={room.id} 
-                  className={`${styles.elementItem} ${selectedElement === room ? styles.selected : ''}`}
-                  onClick={() => { setSelectedElement(room); setSelectedType('room'); }}
-                >
-                  <span>{room.name}</span>
-                  <span className={styles.badge}>{room.type}</span>
-                </div>
+                <ListItem key={room.id} disablePadding>
+                  <ListItemButton 
+                    selected={selectedElement === room}
+                    onClick={() => { setSelectedElement(room); setSelectedType('room'); }}
+                  >
+                    <ListItemIcon><CropSquare /></ListItemIcon>
+                    <ListItemText primary={room.name} secondary={room.type} />
+                  </ListItemButton>
+                </ListItem>
               ))}
               
-              {activeTab === 'walls' && state.walls.length === 0 && (
-                <p className={styles.placeholder}>No walls yet</p>
-              )}
               {activeTab === 'walls' && state.walls.map(wall => (
-                <div 
-                  key={wall.id} 
-                  className={`${styles.elementItem} ${selectedElement === wall ? styles.selected : ''}`}
-                  onClick={() => { setSelectedElement(wall); setSelectedType('wall'); }}
-                >
-                  <span>Wall</span>
-                </div>
+                <ListItem key={wall.id} disablePadding>
+                  <ListItemButton 
+                    selected={selectedElement === wall}
+                    onClick={() => { setSelectedElement(wall); setSelectedType('wall'); }}
+                  >
+                    <ListItemIcon><Timeline /></ListItemIcon>
+                    <ListItemText primary="Wall" />
+                  </ListItemButton>
+                </ListItem>
               ))}
 
-              {activeTab === 'openings' && state.doors.length === 0 && state.windows.length === 0 && (
-                <p className={styles.placeholder}>No openings yet</p>
-              )}
               {activeTab === 'openings' && [...state.doors, ...state.windows].map(item => (
-                <div 
-                  key={item.id} 
-                  className={`${styles.elementItem} ${selectedElement === item ? styles.selected : ''}`}
-                  onClick={() => { setSelectedElement(item); setSelectedType('door' in item ? 'door' : 'window'); }}
-                >
-                  <span>{'swing' in item ? 'Door' : 'Window'}</span>
-                </div>
+                <ListItem key={item.id} disablePadding>
+                  <ListItemButton 
+                    selected={selectedElement === item}
+                    onClick={() => { setSelectedElement(item); setSelectedType('door' in item ? 'door' : 'window'); }}
+                  >
+                    <ListItemIcon>{'swing' in item ? <DoorFront /> : <WindowIcon />}</ListItemIcon>
+                    <ListItemText primary={'swing' in item ? 'Door' : 'Window'} />
+                  </ListItemButton>
+                </ListItem>
               ))}
 
-              {activeTab === 'fixtures' && state.fixtures.length === 0 && (
-                <p className={styles.placeholder}>No fixtures yet</p>
-              )}
               {activeTab === 'fixtures' && state.fixtures.map(fixture => (
-                <div 
-                  key={fixture.id} 
-                  className={`${styles.elementItem} ${selectedElement === fixture ? styles.selected : ''}`}
-                  onClick={() => { setSelectedElement(fixture); setSelectedType('fixture'); }}
-                >
-                  <span>{fixture.type}</span>
-                </div>
+                <ListItem key={fixture.id} disablePadding>
+                  <ListItemButton 
+                    selected={selectedElement === fixture}
+                    onClick={() => { setSelectedElement(fixture); setSelectedType('fixture'); }}
+                  >
+                    <ListItemIcon><Chair /></ListItemIcon>
+                    <ListItemText primary={fixture.type} />
+                  </ListItemButton>
+                </ListItem>
               ))}
-            </div>
-          </div>
-        </aside>
-      </div>
+              
+              {/* Empty states */}
+              {activeTab === 'rooms' && state.rooms.length === 0 && <ListItem><ListItemText primary="No rooms yet" /></ListItem>}
+              {activeTab === 'walls' && state.walls.length === 0 && <ListItem><ListItemText primary="No walls yet" /></ListItem>}
+              {activeTab === 'openings' && state.doors.length === 0 && state.windows.length === 0 && <ListItem><ListItemText primary="No openings yet" /></ListItem>}
+              {activeTab === 'fixtures' && state.fixtures.length === 0 && <ListItem><ListItemText primary="No fixtures yet" /></ListItem>}
+            </List>
+          </Box>
+        </Paper>
+      </Box>
 
       {/* AI Floor Plan Generator Dialog */}
       <FloorPlanGeneratorDialog
@@ -1117,7 +1146,7 @@ const MapEditor: React.FC = () => {
         onClose={() => setShowGeneratorDialog(false)}
         onGenerated={handleFloorPlanGenerated}
       />
-    </div>
+    </Box>
   );
 };
 

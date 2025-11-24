@@ -7,7 +7,7 @@
 console.log('\n🧪 Testing Module Imports...\n');
 
 try {
-  const config = require('./config/gemini.config');
+  const config = require('../../../server/config/gemini.config');
   console.log('✅ Config module loaded');
   console.log('   - GEMINI_CONFIG:', Object.keys(config.GEMINI_CONFIG));
   console.log('   - DEFAULT_INPUTS:', Object.keys(config.DEFAULT_FLOOR_PLAN_INPUTS).length, 'fields');
@@ -17,7 +17,7 @@ try {
 }
 
 try {
-  const schemas = require('./schemas/floorPlan.schema');
+  const schemas = require('../../../server/schemas/floorPlan.schema');
   console.log('✅ Schema module loaded');
   console.log('   - Schemas exported:', Object.keys(schemas).length);
 } catch (error) {
@@ -25,7 +25,7 @@ try {
 }
 
 try {
-  const parser = require('./utils/geminiResponseParser');
+  const parser = require('../../../server/utils/geminiResponseParser');
   console.log('✅ Response parser module loaded');
   console.log('   - Functions:', Object.keys(parser).join(', '));
 } catch (error) {
@@ -33,7 +33,7 @@ try {
 }
 
 try {
-  const promptBuilder = require('./utils/promptBuilder');
+  const promptBuilder = require('../../../server/utils/promptBuilder');
   console.log('✅ Prompt builder module loaded');
   console.log('   - Functions:', Object.keys(promptBuilder).join(', '));
 } catch (error) {
@@ -41,7 +41,7 @@ try {
 }
 
 try {
-  const service = require('./services/geminiFloorPlan');
+  const service = require('../../../server/services/geminiFloorPlan');
   console.log('✅ Main service module loaded');
   console.log('   - Functions:', Object.keys(service).join(', '));
 } catch (error) {
@@ -52,8 +52,8 @@ try {
 console.log('\n🧪 Testing Prompt Generation...\n');
 
 try {
-  const { createArchitectPrompt } = require('./utils/promptBuilder');
-  const { DEFAULT_FLOOR_PLAN_INPUTS } = require('./config/gemini.config');
+  const { createArchitectPrompt } = require('../../../server/utils/promptBuilder');
+  const { DEFAULT_FLOOR_PLAN_INPUTS } = require('../../../server/config/gemini.config');
   
   const prompt = createArchitectPrompt(DEFAULT_FLOOR_PLAN_INPUTS);
   console.log('✅ Prompt generated successfully');
@@ -68,7 +68,7 @@ try {
 console.log('\n🧪 Testing Response Parser...\n');
 
 try {
-  const { extractJsonFromResponse, parseFloorPlanJson } = require('./utils/geminiResponseParser');
+  const { extractJsonFromResponse, parseFloorPlanJson } = require('../../../server/utils/geminiResponseParser');
   
   const mockResponse = {
     candidates: [{
@@ -94,7 +94,7 @@ try {
 console.log('\n🧪 Testing Input Normalization...\n');
 
 try {
-  const { normalizeInputs } = require('./services/geminiFloorPlan');
+  const { normalizeInputs } = require('../../../server/services/geminiFloorPlan');
   
   const partialInputs = {
     plot_width_ft: 80,

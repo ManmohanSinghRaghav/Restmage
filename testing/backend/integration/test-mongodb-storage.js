@@ -47,8 +47,8 @@ async function checkProjectStorage() {
 
     // 3. Check initial project count in DB
     console.log('\n3️⃣  Checking initial project count in MongoDB...');
-    const Project = require('../models/Project');
-    const User = require('../models/User'); // Load models
+    const Project = require('../../../server/models/Project');
+    const User = require('../../../server/models/User'); // Load models
     const initialCount = await Project.countDocuments();
     console.log(`📊 Initial projects in DB: ${initialCount}`);
 

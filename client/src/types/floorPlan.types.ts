@@ -75,6 +75,10 @@ export interface Stair {
 }
 
 export interface FloorPlan {
+  _id: string;
+  project?: string;
+  version: number;
+  name?: string;
   map_info: MapInfo;
   plot_summary: PlotSummary;
   rooms: Room[];
@@ -83,10 +87,20 @@ export interface FloorPlan {
   windows: Window[];
   stairs?: Stair[];
   fixtures?: Fixture[];
+  generatedBy: 'ai' | 'manual';
+  generationInputs?: any;
+  isActive: boolean;
+  createdBy: string;
+  updatedBy?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FloorPlanResponse {
   success: boolean;
-  message: string;
-  floorPlan: FloorPlan;
+  message?: string;
+  // API returns the generated plan under `floorPlan` (server) or `data` (other endpoints)
+  floorPlan?: FloorPlan;
+  data?: FloorPlan;
+  alternatives?: FloorPlan[];
 }

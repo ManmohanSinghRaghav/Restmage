@@ -55,7 +55,9 @@ router.get('/:id', auth, validateObjectId(), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
       .populate('owner', 'username email')
-      .populate('collaborators.user', 'username email');
+      .populate('collaborators.user', 'username email')
+      .populate('activeFloorPlan')
+      .populate('activeCostEstimate');
 
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
@@ -322,9 +324,18 @@ router.delete('/:id', auth, validateObjectId(), async (req, res) => {
       return res.status(403).json({ message: 'Only project owner can delete the project' });
     }
 
+    // Cascade delete related floor plans and cost estimates
+    const FloorPlan = require('../models/FloorPlan');
+    const CostEstimate = require('../models/CostEstimate');
+    
+    await Promise.all([
+      FloorPlan.deleteMany({ project: req.params.id }),
+      CostEstimate.deleteMany({ project: req.params.id })
+    ]);
+
     await Project.findByIdAndDelete(req.params.id);
 
-    res.json({ message: 'Project deleted successfully' });
+    res.json({ message: 'Project and related data deleted successfully' });
   } catch (error) {
     console.error('Delete project error:', error);
     res.status(500).json({ message: 'Server error' });

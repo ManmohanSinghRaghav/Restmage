@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Floor Plan Generator Service (Client-Side)
  * Clean API client for generating floor plans via server endpoint
  */

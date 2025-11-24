@@ -1,0 +1,37 @@
+{
+  "name": "restmage-testing",
+  "version": "1.0.0",
+  "description": "Testing infrastructure for Restmage application",
+  "private": true,
+  "scripts": {
+    "setup": "node utils/checkSetup.js",
+    "test:backend:all": "npm run test:backend:integration && npm run test:backend:unit",
+    "test:backend:integration": "node backend/integration/test-summary.js",
+    "test:backend:integration:full": "node backend/integration/test-new-endpoints.js",
+    "test:backend:integration:simple": "node backend/integration/test-simple.js",
+    "test:backend:integration:endpoints": "node backend/integration/test-endpoints.js",
+    "test:backend:integration:chatbot": "node backend/integration/test-chatbot.js",
+    "test:backend:integration:mongodb": "node backend/integration/test-mongodb-storage.js",
+    "test:backend:integration:frontend-format": "node backend/integration/test-frontend-format.js",
+    "test:backend:unit": "node backend/unit/test-refactored-code.js",
+    "test:backend:debug": "node backend/debug/debug-auth.js",
+    "test:backend:external": "node backend/external/test-openai-direct.js"
+  },
+  "keywords": [
+    "testing",
+    "restmage",
+    "integration-tests",
+    "unit-tests"
+  ],
+  "author": "Restmage Development Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.5.0",
+    "mongoose": "^7.5.0",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "jest": "^29.6.4",
+    "supertest": "^6.3.3"
+  }
+}

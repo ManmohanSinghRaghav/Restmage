@@ -1,87 +1,90 @@
-import React, { useState } from 'react';
-import { Box, Paper, Typography, TextField, Button, Card, CardContent, Select, MenuItem, FormControl, InputLabel, Chip, Alert } from '@mui/material';
-import { Add as AddIcon, Remove as RemoveIcon, Home as HomeIcon } from '@mui/icons-material';
-import api from '../../services/api';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  Box, Paper, Typography, TextField, Button,
+  Select, MenuItem, FormControl, InputLabel, Alert, FormControlLabel,
+  Checkbox, Autocomplete, CircularProgress
+} from '@mui/material';
+import { Home as HomeIcon } from '@mui/icons-material';
+import { floorPlansAPI, projectsAPI } from '../../services/api';
+import { Project } from '../../types';
+import { FloorPlanInputs } from '../../types/floorPlan.types';
 
-interface Room {
-  type: string;
-  count: number;
+interface FloorPlanGeneratorProps {
+  projectId?: string;
 }
 
-interface FloorPlanRoom {
-  id: string;
-  type: string;
-  count: number;
-  dimensions: {
-    width: number;
-    height: number;
-    area: number;
-  };
-  position: {
-    x: number;
-    y: number;
-  };
-  color: string;
-  walls: Array<{
-    start: { x: number; y: number };
-    end: { x: number; y: number };
-  }>;
-}
+const FloorPlanGenerator: React.FC<FloorPlanGeneratorProps> = ({ projectId: propProjectId }) => {
+  const navigate = useNavigate();
+  const { projectId: urlProjectId } = useParams<{ projectId: string }>();
+  const projectId = propProjectId || urlProjectId;
 
-interface FloorPlanData {
-  propertyDimensions: {
-    width: number;
-    height: number;
-    totalArea: number;
-  };
-  rooms: FloorPlanRoom[];
-  metadata: {
-    generatedAt: string;
-    totalRooms: number;
-    efficiency: number;
-    usedArea: number;
-    wastedArea: number;
-  };
-}
+  // Property inputs
+  const [plotWidth, setPlotWidth] = useState<number>(40);
+  const [plotLength, setPlotLength] = useState<number>(60);
+  const [entranceFacing, setEntranceFacing] = useState<string>('North');
+  const [setbackFront, setSetbackFront] = useState<number>(5);
+  const [setbackRear, setSetbackRear] = useState<number>(3);
+  const [setbackSideLeft, setSetbackSideLeft] = useState<number>(3);
+  const [setbackSideRight, setSetbackSideRight] = useState<number>(3);
+  const [rooms, setRooms] = useState<string>('2BHK');
+  const [floors, setFloors] = useState<number>(1);
+  const [location, setLocation] = useState<string>('');
+  const [vastuCompliance, setVastuCompliance] = useState<boolean>(false);
 
-const ROOM_TYPES = [
-  'Bedroom',
-  'Bathroom',
-  'Kitchen',
-  'Living Room',
-  'Dining Room',
-  'Store Room',
-  'Drawing Room',
-  'Hall',
-  'Balcony',
-  'Garage'
-];
+  // Project selection for standalone usage
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
 
-const FloorPlanGenerator: React.FC = () => {
-  const [propertyWidth, setPropertyWidth] = useState<number>(50);
-  const [propertyHeight, setPropertyHeight] = useState<number>(40);
-  const [rooms, setRooms] = useState<Room[]>([
-    { type: 'Bedroom', count: 3 },
-    { type: 'Bathroom', count: 2 },
-    { type: 'Kitchen', count: 1 },
-    { type: 'Living Room', count: 1 }
-  ]);
-  const [floorPlan, setFloorPlan] = useState<FloorPlanData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const addRoom = () => {
-    setRooms([...rooms, { type: 'Bedroom', count: 1 }]);
+  // Load project if projectId provided
+  useEffect(() => {
+    if (projectId) {
+      loadProject(projectId);
+    }
+  }, [projectId]);
+
+  // Search projects for standalone usage
+  useEffect(() => {
+    if (!projectId && projectSearchQuery.length > 0) {
+      searchProjects(projectSearchQuery);
+    }
+  }, [projectSearchQuery, projectId]);
+
+  const loadProject = async (id: string) => {
+    try {
+      const project = await projectsAPI.getProject(id);
+      setSelectedProject(project);
+      // Pre-fill inputs from project if available
+      if (project.propertyDetails?.dimensions) {
+        const dims = project.propertyDetails.dimensions;
+        if (dims.unit === 'feet') {
+          setPlotWidth(dims.width);
+          setPlotLength(dims.length);
+        }
+      }
+      if (project.propertyDetails?.location?.city) {
+        setLocation(project.propertyDetails.location.city);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to load project');
+    }
   };
 
-  const removeRoom = (index: number) => {
-    setRooms(rooms.filter((_, i) => i !== index));
-  };
-
-  const updateRoom = (index: number, field: keyof Room, value: string | number) => {
-    const newRooms = [...rooms];
-    newRooms[index] = { ...newRooms[index], [field]: value };
-    setRooms(newRooms);
+  const searchProjects = async (search: string) => {
+    setProjectsLoading(true);
+    try {
+      const response = await projectsAPI.getProjects({ search, limit: 20 });
+      setAvailableProjects(response.projects);
+    } catch (err) {
+      console.error('Failed to search projects:', err);
+    } finally {
+      setProjectsLoading(false);
+    }
   };
 
   const generateFloorPlan = async () => {
@@ -89,195 +92,38 @@ const FloorPlanGenerator: React.FC = () => {
     setError(null);
 
     try {
-      const response = await api.post('/floorplan/generate', {
-        propertyWidth,
-        propertyHeight,
-        rooms
-      });
+      // Validate that we have a project
+      if (!projectId && !selectedProject) {
+        setError('Please select a project or create one first');
+        setLoading(false);
+        return;
+      }
 
-      setFloorPlan(response.data.floorPlan);
+      const targetProjectId = projectId || selectedProject!._id;
+
+      const inputs: FloorPlanInputs = {
+        plot_width_ft: plotWidth,
+        plot_length_ft: plotLength,
+        entrance_facing: entranceFacing,
+        setback_front_ft: setbackFront,
+        setback_rear_ft: setbackRear,
+        setback_side_left_ft: setbackSideLeft,
+        setback_side_right_ft: setbackSideRight,
+        rooms,
+        floors,
+        location: location || undefined,
+        vastu_compliance: vastuCompliance,
+      };
+
+      const floorPlan = await floorPlansAPI.generateAI(targetProjectId, inputs);
+      
+      // Navigate to editor
+      navigate(`/floorplans/${floorPlan._id}/edit`);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to generate floor plan');
     } finally {
       setLoading(false);
     }
-  };
-
-  const optimizeFloorPlan = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const response = await api.post('/floorplan/optimize', {
-        propertyWidth,
-        propertyHeight,
-        rooms
-      });
-
-      setFloorPlan(response.data.floorPlan);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to optimize floor plan');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderFloorPlan = () => {
-    if (!floorPlan) return null;
-
-    const scale = Math.min(600 / floorPlan.propertyDimensions.width, 400 / floorPlan.propertyDimensions.height);
-
-    return (
-      <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Generated Floor Plan
-        </Typography>
-
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          {/* SVG Floor Plan */}
-          <Box sx={{ flex: 1 }}>
-            <svg
-              width={floorPlan.propertyDimensions.width * scale}
-              height={floorPlan.propertyDimensions.height * scale}
-              style={{ border: '2px solid #333', background: '#f5f5f5' }}
-            >
-              {/* Property boundary */}
-              <rect
-                x="0"
-                y="0"
-                width={floorPlan.propertyDimensions.width * scale}
-                height={floorPlan.propertyDimensions.height * scale}
-                fill="none"
-                stroke="#000"
-                strokeWidth="3"
-              />
-
-              {/* Rooms */}
-              {floorPlan.rooms.map((room) => (
-                <g key={room.id}>
-                  {/* Room rectangle */}
-                  <rect
-                    x={room.position.x * scale}
-                    y={room.position.y * scale}
-                    width={room.dimensions.width * scale}
-                    height={room.dimensions.height * scale}
-                    fill={room.color}
-                    stroke="#333"
-                    strokeWidth="2"
-                    opacity="0.8"
-                  />
-
-                  {/* Room label */}
-                  <text
-                    x={(room.position.x + room.dimensions.width / 2) * scale}
-                    y={(room.position.y + room.dimensions.height / 2) * scale}
-                    textAnchor="middle"
-                    fontSize="12"
-                    fontWeight="bold"
-                    fill="#000"
-                  >
-                    {room.type}
-                  </text>
-                  <text
-                    x={(room.position.x + room.dimensions.width / 2) * scale}
-                    y={(room.position.y + room.dimensions.height / 2 + 1.5) * scale}
-                    textAnchor="middle"
-                    fontSize="10"
-                    fill="#000"
-                  >
-                    {room.dimensions.area.toFixed(0)} sq ft
-                  </text>
-                </g>
-              ))}
-            </svg>
-          </Box>
-
-          {/* Metadata */}
-          <Box sx={{ width: 250 }}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Plan Details
-                </Typography>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Property Size
-                  </Typography>
-                  <Typography variant="body1">
-                    {floorPlan.propertyDimensions.width} × {floorPlan.propertyDimensions.height} ft
-                  </Typography>
-                  <Typography variant="body2">
-                    ({floorPlan.propertyDimensions.totalArea} sq ft)
-                  </Typography>
-                </Box>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Rooms
-                  </Typography>
-                  <Typography variant="body1">
-                    {floorPlan.metadata.totalRooms}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Space Efficiency
-                  </Typography>
-                  <Typography variant="body1" color={floorPlan.metadata.efficiency > 75 ? 'success.main' : 'warning.main'}>
-                    {floorPlan.metadata.efficiency}%
-                  </Typography>
-                </Box>
-
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Used Area
-                  </Typography>
-                  <Typography variant="body1">
-                    {floorPlan.metadata.usedArea} sq ft
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Available Space
-                  </Typography>
-                  <Typography variant="body1">
-                    {floorPlan.metadata.wastedArea} sq ft
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Card>
-
-            {/* Room Legend */}
-            <Card sx={{ mt: 2 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Room Legend
-                </Typography>
-                {floorPlan.rooms.map((room) => (
-                  <Box key={room.id} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Box
-                      sx={{
-                        width: 20,
-                        height: 20,
-                        bgcolor: room.color,
-                        border: '1px solid #333',
-                        mr: 1
-                      }}
-                    />
-                    <Typography variant="body2">
-                      {room.type} ({room.dimensions.area.toFixed(0)} sq ft)
-                    </Typography>
-                  </Box>
-                ))}
-              </CardContent>
-            </Card>
-          </Box>
-        </Box>
-      </Paper>
-    );
   };
 
   return (
@@ -286,7 +132,7 @@ const FloorPlanGenerator: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
           <HomeIcon sx={{ fontSize: 40, mr: 2, color: 'primary.main' }} />
           <Typography variant="h4">
-            2D Floor Plan Generator
+            AI Floor Plan Generator
           </Typography>
         </Box>
 
@@ -296,113 +142,188 @@ const FloorPlanGenerator: React.FC = () => {
           </Alert>
         )}
 
-        {/* Property Dimensions */}
-        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-          Property Dimensions
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-          <TextField
-            fullWidth
-            label="Width (feet)"
-            type="number"
-            value={propertyWidth}
-            onChange={(e) => setPropertyWidth(Number(e.target.value))}
-            inputProps={{ min: 10, max: 200 }}
-          />
-          <TextField
-            fullWidth
-            label="Height (feet)"
-            type="number"
-            value={propertyHeight}
-            onChange={(e) => setPropertyHeight(Number(e.target.value))}
-            inputProps={{ min: 10, max: 200 }}
-          />
-        </Box>
-
-        {/* Rooms */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">
-            Rooms
-          </Typography>
-          <Button
-            startIcon={<AddIcon />}
-            onClick={addRoom}
-            variant="outlined"
-            size="small"
-          >
-            Add Room
-          </Button>
-        </Box>
-
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-          {rooms.map((room, index) => (
-            <Card key={index} variant="outlined" sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', md: 'calc(33.333% - 11px)' } }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                  <Chip label={`Room ${index + 1}`} size="small" />
-                  <Button
-                    size="small"
-                    color="error"
-                    onClick={() => removeRoom(index)}
-                    startIcon={<RemoveIcon />}
-                  >
-                    Remove
-                  </Button>
-                </Box>
-
-                <FormControl fullWidth sx={{ mb: 2 }}>
-                  <InputLabel>Room Type</InputLabel>
-                  <Select
-                    value={room.type}
-                    label="Room Type"
-                    onChange={(e) => updateRoom(index, 'type', e.target.value)}
-                  >
-                    {ROOM_TYPES.map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
+        {/* Project Selection (only for standalone usage) */}
+        {!projectId && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Select Project
+            </Typography>
+            <Autocomplete
+              options={availableProjects}
+              getOptionLabel={(option) => option.name}
+              value={selectedProject}
+              onChange={(_, newValue) => setSelectedProject(newValue)}
+              onInputChange={(_, newInputValue) => setProjectSearchQuery(newInputValue)}
+              loading={projectsLoading}
+              renderInput={(params) => (
                 <TextField
-                  fullWidth
-                  label="Count"
-                  type="number"
-                  value={room.count}
-                  onChange={(e) => updateRoom(index, 'count', Number(e.target.value))}
-                  inputProps={{ min: 1, max: 10 }}
+                  {...params}
+                  label="Search and select project"
+                  placeholder="Type to search projects..."
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {projectsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
                 />
-              </CardContent>
-            </Card>
-          ))}
+              )}
+            />
+          </Box>
+        )}
+
+        {/* Plot Dimensions */}
+        <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
+          Plot Dimensions (in feet)
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <TextField
+            label="Plot Width"
+            type="number"
+            value={plotWidth}
+            onChange={(e) => setPlotWidth(Number(e.target.value))}
+            inputProps={{ min: 10, max: 500 }}
+            sx={{ flex: 1, minWidth: 150 }}
+          />
+          <TextField
+            label="Plot Length"
+            type="number"
+            value={plotLength}
+            onChange={(e) => setPlotLength(Number(e.target.value))}
+            inputProps={{ min: 10, max: 500 }}
+            sx={{ flex: 1, minWidth: 150 }}
+          />
         </Box>
 
-        {/* Action Buttons */}
-        <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-          <Button
-            variant="contained"
-            size="large"
-            onClick={generateFloorPlan}
-            disabled={loading || rooms.length === 0}
-            fullWidth
-          >
-            {loading ? 'Generating...' : 'Generate Floor Plan'}
-          </Button>
-          <Button
-            variant="outlined"
-            size="large"
-            onClick={optimizeFloorPlan}
-            disabled={loading || rooms.length === 0}
-            fullWidth
-          >
-            {loading ? 'Optimizing...' : 'Optimize Layout'}
-          </Button>
+        {/* Setbacks */}
+        <Typography variant="h6" gutterBottom>
+          Setbacks (in feet)
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <TextField
+            label="Front Setback"
+            type="number"
+            value={setbackFront}
+            onChange={(e) => setSetbackFront(Number(e.target.value))}
+            inputProps={{ min: 0, max: 50 }}
+            sx={{ flex: 1, minWidth: 120 }}
+          />
+          <TextField
+            label="Rear Setback"
+            type="number"
+            value={setbackRear}
+            onChange={(e) => setSetbackRear(Number(e.target.value))}
+            inputProps={{ min: 0, max: 50 }}
+            sx={{ flex: 1, minWidth: 120 }}
+          />
+          <TextField
+            label="Left Setback"
+            type="number"
+            value={setbackSideLeft}
+            onChange={(e) => setSetbackSideLeft(Number(e.target.value))}
+            inputProps={{ min: 0, max: 50 }}
+            sx={{ flex: 1, minWidth: 120 }}
+          />
+          <TextField
+            label="Right Setback"
+            type="number"
+            value={setbackSideRight}
+            onChange={(e) => setSetbackSideRight(Number(e.target.value))}
+            inputProps={{ min: 0, max: 50 }}
+            sx={{ flex: 1, minWidth: 120 }}
+          />
         </Box>
+
+        {/* Building Requirements */}
+        <Typography variant="h6" gutterBottom>
+          Building Requirements
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <FormControl sx={{ flex: 1, minWidth: 150 }}>
+            <InputLabel>Entrance Facing</InputLabel>
+            <Select
+              value={entranceFacing}
+              label="Entrance Facing"
+              onChange={(e) => setEntranceFacing(e.target.value)}
+            >
+              <MenuItem value="North">North</MenuItem>
+              <MenuItem value="South">South</MenuItem>
+              <MenuItem value="East">East</MenuItem>
+              <MenuItem value="West">West</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl sx={{ flex: 1, minWidth: 150 }}>
+            <InputLabel>Room Configuration</InputLabel>
+            <Select
+              value={rooms}
+              label="Room Configuration"
+              onChange={(e) => setRooms(e.target.value)}
+            >
+              <MenuItem value="1BHK">1BHK</MenuItem>
+              <MenuItem value="2BHK">2BHK</MenuItem>
+              <MenuItem value="3BHK">3BHK</MenuItem>
+              <MenuItem value="4BHK">4BHK</MenuItem>
+              <MenuItem value="Villa">Villa</MenuItem>
+              <MenuItem value="Duplex">Duplex</MenuItem>
+            </Select>
+          </FormControl>
+
+          <TextField
+            label="Number of Floors"
+            type="number"
+            value={floors}
+            onChange={(e) => setFloors(Number(e.target.value))}
+            inputProps={{ min: 1, max: 5 }}
+            sx={{ flex: 1, minWidth: 150 }}
+          />
+        </Box>
+
+        {/* Optional Details */}
+        <Typography variant="h6" gutterBottom>
+          Optional Details
+        </Typography>
+        <Box sx={{ mb: 3 }}>
+          <TextField
+            fullWidth
+            label="Location (City/Region)"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="e.g., Mumbai, Delhi"
+            sx={{ mb: 2 }}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={vastuCompliance}
+                onChange={(e) => setVastuCompliance(e.target.checked)}
+              />
+            }
+            label="Enable Vastu Compliance"
+          />
+        </Box>
+
+        {/* Generate Button */}
+        <Button
+          variant="contained"
+          size="large"
+          onClick={generateFloorPlan}
+          disabled={loading || (!projectId && !selectedProject)}
+          fullWidth
+          sx={{ mt: 2 }}
+        >
+          {loading ? 'Generating Floor Plan...' : 'Generate AI Floor Plan'}
+        </Button>
+
+        {!projectId && !selectedProject && (
+          <Alert severity="info" sx={{ mt: 2 }}>
+            Please select a project to generate a floor plan
+          </Alert>
+        )}
       </Paper>
-
-      {/* Render generated floor plan */}
-      {renderFloorPlan()}
     </Box>
   );
 };

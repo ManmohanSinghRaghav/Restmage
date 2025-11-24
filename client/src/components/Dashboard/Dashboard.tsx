@@ -12,10 +12,20 @@ import {
   InputAdornment,
   Fab,
   CircularProgress,
+  Tabs,
+  Tab,
+  Chip,
 } from '@mui/material';
-import { Search, Add as AddIcon, Visibility, Edit } from '@mui/icons-material';
-import { Project } from '../../types';
-import { projectsAPI } from '../../services/api';
+import { 
+  Search, 
+  Add as AddIcon, 
+  Visibility, 
+  Edit,
+  CheckCircle as ActiveIcon,
+} from '@mui/icons-material';
+import { Project, CostEstimate } from '../../types';
+import { FloorPlan } from '../../types/floorPlan.types';
+import { projectsAPI, floorPlansAPI, costEstimatesAPI } from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
 
 const STATUS_COLORS = {
@@ -29,30 +39,50 @@ const MAX_SEARCH_WIDTH = 400;
 const LOADING_MIN_HEIGHT = '400px';
 
 const Dashboard: React.FC = () => {
+  const [tabValue, setTabValue] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
+  const [costEstimates, setCostEstimates] = useState<CostEstimate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
   const navigate = useNavigate();
   const { showNotification } = useNotification();
 
-  const fetchProjects = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await projectsAPI.getProjects({
-        search: searchQuery || undefined,
-      });
-      setProjects(response.projects);
+      
+      if (tabValue === 0) {
+        // Projects tab
+        const response = await projectsAPI.getProjects({
+          search: searchQuery || undefined,
+        });
+        setProjects(response.projects);
+      } else if (tabValue === 1) {
+        // Floor Plans tab
+        const plans = await floorPlansAPI.list();
+        setFloorPlans(plans);
+      } else if (tabValue === 2) {
+        // Cost Estimates tab
+        const estimates = await costEstimatesAPI.list();
+        setCostEstimates(estimates);
+      }
     } catch (error: any) {
-      showNotification('Failed to load projects', 'error');
+      showNotification('Failed to load data', 'error');
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, showNotification]);
+  }, [tabValue, searchQuery, showNotification]);
 
   useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+    fetchData();
+  }, [fetchData]);
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+    setSearchQuery('');
+  };
 
   const handleSearchInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(event.target.value);
@@ -60,11 +90,20 @@ const Dashboard: React.FC = () => {
 
   const handleSearchFormSubmit = (event: React.FormEvent) => {
     event.preventDefault();
-    fetchProjects();
+    fetchData();
   };
 
   const formatDateString = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatCurrency = (amount: number, currency: string = 'INR') => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   const getProjectStatusColor = (status: string) => {
@@ -83,6 +122,23 @@ const Dashboard: React.FC = () => {
     navigate(`/project/${projectId}/edit`);
   };
 
+  const navigateToFloorPlanEditor = (floorPlanId: string) => {
+    navigate(`/floorplans/${floorPlanId}/edit`);
+  };
+
+  const getCreateButtonConfig = () => {
+    switch (tabValue) {
+      case 0:
+        return { label: 'New Project', onClick: navigateToNewProject };
+      case 1:
+        return { label: 'Generate Floor Plan', onClick: () => navigate('/floorplan') };
+      case 2:
+        return { label: 'Calculate Cost', onClick: () => navigate('/price-prediction') };
+      default:
+        return { label: 'New Project', onClick: navigateToNewProject };
+    }
+  };
+
   if (loading) {
     return (
       <Container>
@@ -93,46 +149,92 @@ const Dashboard: React.FC = () => {
     );
   }
 
+  const createButton = getCreateButtonConfig();
+
   return (
     <Container maxWidth="lg">
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" gutterBottom>
-          My Projects
+          Dashboard
         </Typography>
         <Typography variant="body1" color="textSecondary" gutterBottom>
-          Manage your real estate projects and visualizations
+          Manage your projects, floor plans, and cost estimates
         </Typography>
       </Box>
 
-      <Box sx={{ mb: 3 }}>
-        <form onSubmit={handleSearchFormSubmit}>
-          <TextField
-            fullWidth
-            placeholder="Search projects..."
-            value={searchQuery}
-            onChange={handleSearchInputChange}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ maxWidth: MAX_SEARCH_WIDTH }}
-          />
-        </form>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={tabValue} onChange={handleTabChange}>
+          <Tab label="Projects" />
+          <Tab label="Floor Plans" />
+          <Tab label="Cost Estimates" />
+        </Tabs>
       </Box>
 
-      {projects.length === 0 ? (
-        <EmptyProjectsView onCreateProject={navigateToNewProject} />
+      {tabValue === 0 && (
+        <Box sx={{ mb: 3 }}>
+          <form onSubmit={handleSearchFormSubmit}>
+            <TextField
+              fullWidth
+              placeholder="Search projects..."
+              value={searchQuery}
+              onChange={handleSearchInputChange}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ maxWidth: MAX_SEARCH_WIDTH }}
+            />
+          </form>
+        </Box>
+      )}
+
+      {loading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+          <CircularProgress />
+        </Box>
       ) : (
-        <ProjectsGrid 
-          projects={projects}
-          onViewProject={navigateToProject}
-          onEditProject={navigateToEditProject}
-          formatDate={formatDateString}
-          getStatusColor={getProjectStatusColor}
-        />
+        <>
+          {tabValue === 0 && (
+            projects.length === 0 ? (
+              <EmptyView message="No projects yet" onCreate={navigateToNewProject} />
+            ) : (
+              <ProjectsGrid 
+                projects={projects}
+                onViewProject={navigateToProject}
+                onEditProject={navigateToEditProject}
+                formatDate={formatDateString}
+                getStatusColor={getProjectStatusColor}
+              />
+            )
+          )}
+
+          {tabValue === 1 && (
+            floorPlans.length === 0 ? (
+              <EmptyView message="No floor plans yet" onCreate={() => navigate('/floorplan')} />
+            ) : (
+              <FloorPlansGrid 
+                floorPlans={floorPlans}
+                onView={navigateToFloorPlanEditor}
+                formatDate={formatDateString}
+              />
+            )
+          )}
+
+          {tabValue === 2 && (
+            costEstimates.length === 0 ? (
+              <EmptyView message="No cost estimates yet" onCreate={() => navigate('/price-prediction')} />
+            ) : (
+              <CostEstimatesGrid 
+                costEstimates={costEstimates}
+                formatDate={formatDateString}
+                formatCurrency={formatCurrency}
+              />
+            )
+          )}
+        </>
       )}
 
       <Fab
@@ -143,7 +245,7 @@ const Dashboard: React.FC = () => {
           bottom: 16,
           right: 16,
         }}
-        onClick={navigateToNewProject}
+        onClick={createButton.onClick}
       >
         <AddIcon />
       </Fab>
@@ -151,7 +253,7 @@ const Dashboard: React.FC = () => {
   );
 };
 
-const EmptyProjectsView: React.FC<{ onCreateProject: () => void }> = ({ onCreateProject }) => (
+const EmptyView: React.FC<{ message: string; onCreate: () => void }> = ({ message, onCreate }) => (
   <Box
     sx={{
       textAlign: 'center',
@@ -164,19 +266,116 @@ const EmptyProjectsView: React.FC<{ onCreateProject: () => void }> = ({ onCreate
     }}
   >
     <Typography variant="h6" gutterBottom>
-      No projects yet
+      {message}
     </Typography>
     <Typography variant="body2" color="textSecondary" gutterBottom>
-      Create your first real estate project to get started
+      Click the button below to get started
     </Typography>
     <Button
       variant="contained"
       startIcon={<AddIcon />}
-      onClick={onCreateProject}
+      onClick={onCreate}
       sx={{ mt: 2 }}
     >
-      Create Project
+      Create
     </Button>
+  </Box>
+);
+
+interface FloorPlansGridProps {
+  floorPlans: FloorPlan[];
+  onView: (id: string) => void;
+  formatDate: (date: string) => string;
+}
+
+const FloorPlansGrid: React.FC<FloorPlansGridProps> = ({ floorPlans, onView, formatDate }) => (
+  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
+    {floorPlans.map((plan) => (
+      <Card key={plan._id}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
+            <Typography variant="h6" gutterBottom noWrap>
+              {plan.name || `Floor Plan v${plan.version}`}
+            </Typography>
+            {plan.isActive && (
+              <Chip
+                label="Active"
+                size="small"
+                color="success"
+                icon={<ActiveIcon />}
+              />
+            )}
+          </Box>
+          <Typography variant="body2" color="textSecondary" gutterBottom>
+            Version {plan.version}
+          </Typography>
+          <Box sx={{ mt: 2, mb: 1 }}>
+            <Chip
+              label={plan.generatedBy === 'ai' ? 'AI Generated' : 'Manual'}
+              size="small"
+              variant="outlined"
+            />
+          </Box>
+          <Typography variant="caption" color="textSecondary">
+            Created: {formatDate(plan.createdAt)}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            {plan.plot_summary.plot_width_ft}×{plan.plot_summary.plot_length_ft} ft
+          </Typography>
+        </CardContent>
+        <CardActions>
+          <Button size="small" startIcon={<Visibility />} onClick={() => onView(plan._id)}>
+            View
+          </Button>
+        </CardActions>
+      </Card>
+    ))}
+  </Box>
+);
+
+interface CostEstimatesGridProps {
+  costEstimates: CostEstimate[];
+  formatDate: (date: string) => string;
+  formatCurrency: (amount: number, currency: string) => string;
+}
+
+const CostEstimatesGrid: React.FC<CostEstimatesGridProps> = ({ costEstimates, formatDate, formatCurrency }) => (
+  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 3 }}>
+    {costEstimates.map((estimate) => (
+      <Card key={estimate._id}>
+        <CardContent>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', mb: 2 }}>
+            <Typography variant="h6" gutterBottom noWrap>
+              {estimate.name || `Cost Estimate v${estimate.version}`}
+            </Typography>
+            {estimate.isActive && (
+              <Chip
+                label="Active"
+                size="small"
+                color="success"
+                icon={<ActiveIcon />}
+              />
+            )}
+          </Box>
+          <Typography variant="h5" color="primary" gutterBottom>
+            {formatCurrency(estimate.total, estimate.currency)}
+          </Typography>
+          <Typography variant="body2" color="textSecondary" gutterBottom>
+            Version {estimate.version}
+          </Typography>
+          <Box sx={{ mt: 2, mb: 1 }}>
+            <Chip
+              label={estimate.calculationMethod.toUpperCase()}
+              size="small"
+              variant="outlined"
+            />
+          </Box>
+          <Typography variant="caption" color="textSecondary">
+            Calculated: {formatDate(estimate.calculatedAt)}
+          </Typography>
+        </CardContent>
+      </Card>
+    ))}
   </Box>
 );
 

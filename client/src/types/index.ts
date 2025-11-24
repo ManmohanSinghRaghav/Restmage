@@ -7,6 +7,35 @@ export interface User {
   lastLogin?: string;
 }
 
+export interface CostEstimate {
+  _id: string;
+  project?: string;
+  version: number;
+  name?: string;
+  materials: number;
+  labor: number;
+  permits: number;
+  equipment: number;
+  total: number;
+  currency: string;
+  breakdown: Array<{
+    category: string;
+    item: string;
+    quantity: number;
+    unit?: string;
+    unitCost: number;
+    totalCost: number;
+  }>;
+  calculatedAt: string;
+  basedOnFloorPlan?: string;
+  calculationMethod: 'automatic' | 'manual' | 'ai';
+  calculationInputs?: any;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Project {
   _id: string;
   name: string;
@@ -42,37 +71,16 @@ export interface Project {
       pricePerUnit?: number;
     }>;
   };
-  mapData: {
-    bounds: number[][];
-    layers: Array<{
-      id: string;
-      name: string;
-      type: 'marker' | 'polygon' | 'line' | 'circle';
-      data: any;
-      style?: any;
-      visible: boolean;
-    }>;
-    center: {
-      lat: number;
-      lng: number;
-    };
+  activeFloorPlan?: any; // Will be populated with FloorPlan
+  activeCostEstimate?: CostEstimate;
+  // Optional current cost estimation (components reference `costEstimation`)
+  costEstimation?: CostEstimate | null;
+  // Map data used by editors and map components
+  mapData?: {
+    center: { lat: number; lng: number };
     zoom: number;
-  };
-  costEstimation?: {
-    materials: number;
-    labor: number;
-    permits: number;
-    equipment: number;
-    total: number;
-    currency: string;
-    lastCalculated?: string;
-    breakdown: Array<{
-      category: string;
-      item: string;
-      quantity: number;
-      unitCost: number;
-      totalCost: number;
-    }>;
+    bounds: any[];
+    layers: any[];
   };
   status: 'draft' | 'in-progress' | 'completed' | 'archived';
   isPublic: boolean;
