@@ -5,7 +5,7 @@ services:
     runtime: node
     region: singapore
     plan: free
-    rootDirectory: server
+    rootDir: server
     buildCommand: npm install
     startCommand: npm start
     envVars:
@@ -20,4 +20,4 @@ services:
       - key: CLIENT_URL
         sync: false
       - key: ALLOWED_ORIGINS
-        sync: false
+        sync: false 
