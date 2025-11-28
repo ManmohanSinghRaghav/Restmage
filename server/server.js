@@ -45,6 +45,7 @@ const io = socketIo(server, {
       // Allow server-to-server and tools with no origin
       if (!origin) return callback(null, true);
       if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+      if (/\.vercel\.app$/.test(origin)) return callback(null, true);
       if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     },
@@ -64,6 +65,7 @@ app.use(cors({
     if (ALLOW_ALL_ORIGINS) return callback(null, true);
     if (!origin) return callback(null, true);
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+    if (/\.vercel\.app$/.test(origin)) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
@@ -134,9 +136,9 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString() 
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -167,7 +169,7 @@ setupWebSocketHandlers(io);
 
 const handleServerError = (err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'production' ? {} : err.stack
   });
@@ -184,9 +186,9 @@ const startServer = async () => {
   try {
     await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB with Mongoose');
-    
+
     await verifyMongoDeployment(MONGODB_URI);
-    
+
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`API available at http://localhost:${PORT}/api`);
