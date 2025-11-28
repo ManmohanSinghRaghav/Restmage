@@ -1,15 +1,18 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box, Paper, Typography, Button, IconButton, Tooltip, Select, MenuItem,
   TextField, Tabs, Tab, Divider, List, ListItem, ListItemText, ListItemIcon,
-  AppBar, Toolbar, Grid, FormControl, InputLabel, ListItemButton
+  AppBar, Toolbar, Grid, FormControl, InputLabel, ListItemButton, CircularProgress
 } from '@mui/material';
 import {
   Undo, Redo, ZoomIn, ZoomOut, GridOn, Delete, Check, Home, Window as WindowIcon,
-  CropSquare, Timeline, DoorFront, Chair, Download, Upload, AutoAwesome
+  CropSquare, Timeline, DoorFront, Chair, Download, Upload, AutoAwesome, Save, ArrowForward
 } from '@mui/icons-material';
 import { useNotification } from '../../contexts/NotificationContext';
 import FloorPlanGeneratorDialog from './FloorPlanGeneratorDialog';
+import { floorPlansAPI } from '../../services/api';
+import { FloorPlan } from '../../types/floorPlan.types';
 
 // TypeScript interfaces
 interface Point {
@@ -106,9 +109,99 @@ const ROOM_TYPES = [
 ];
 
 const MapEditor: React.FC = () => {
+  const { projectId, id: floorPlanId } = useParams<{ projectId: string; id: string }>();
+  const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { showNotification } = useNotification();
+
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [currentFloorPlanId, setCurrentFloorPlanId] = useState<string | null>(floorPlanId || null);
+
+  // Load floor plan data
+  useEffect(() => {
+    const loadData = async () => {
+      if (!projectId && !floorPlanId) return;
+      
+      setLoading(true);
+      try {
+        let floorPlan: FloorPlan | null = null;
+        
+        if (floorPlanId) {
+          floorPlan = await floorPlansAPI.get(floorPlanId);
+        } else if (projectId) {
+          // If we only have projectId, try to get the latest floor plan
+          const plans = await floorPlansAPI.list(projectId);
+          if (plans && plans.length > 0) {
+            // Sort by date descending
+            plans.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            floorPlan = plans[0];
+          }
+        }
+        
+        if (floorPlan) {
+          setCurrentFloorPlanId(floorPlan._id || null);
+          
+          // Map API response to editor state (handle both camelCase from DB and snake_case from AI)
+          const fp = floorPlan as any;
+          const mapInfoData = fp.map_info || fp.mapInfo || {};
+          const plotSummaryData = fp.plot_summary || fp.plotSummary || {};
+          
+          setState(prev => ({
+            ...prev,
+            mapInfo: {
+              title: mapInfoData.title || 'Floor Plan',
+              author: mapInfoData.author || 'Architect',
+              date: mapInfoData.date || new Date().toISOString().split('T')[0],
+              scale: mapInfoData.scale || '1:100',
+              north_direction: mapInfoData.north_direction || 'Top of map',
+            },
+            plotSummary: {
+              plot_length_ft: plotSummaryData.plot_length_ft || 50,
+              plot_width_ft: plotSummaryData.plot_width_ft || 30,
+              setback_front_ft: plotSummaryData.setback_front_ft || 5,
+              setback_rear_ft: plotSummaryData.setback_rear_ft || 3,
+              setback_side_left_ft: plotSummaryData.setback_side_left_ft || 3,
+              setback_side_right_ft: plotSummaryData.setback_side_right_ft || 3,
+            },
+            rooms: (fp.rooms || []).map((r: any, i: number) => ({
+              ...r,
+              id: r.id || `room-${Date.now()}-${i}`,
+              polygon: r.polygon
+            })),
+            walls: (fp.walls || []).map((w: any, i: number) => ({
+              ...w,
+              id: w.id || `wall-${Date.now()}-${i}`
+            })),
+            doors: (fp.doors || []).map((d: any, i: number) => ({
+              ...d,
+              id: d.id || `door-${Date.now()}-${i}`
+            })),
+            windows: (fp.windows || []).map((w: any, i: number) => ({
+              ...w,
+              id: w.id || `window-${Date.now()}-${i}`
+            })),
+            fixtures: (fp.fixtures || []).map((f: any, i: number) => ({
+              ...f,
+              id: f.id || `fixture-${Date.now()}-${i}`
+            })),
+          }));
+          
+          showNotification('Floor plan loaded successfully', 'success');
+        }
+      } catch (error) {
+        console.error('Failed to load floor plan:', error);
+        // Don't show error if it's just 404 (no floor plan yet)
+        // showNotification('Failed to load floor plan', 'error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, floorPlanId]);
 
   // Main state
   const [state, setState] = useState<EditorState>({
@@ -347,72 +440,6 @@ const MapEditor: React.FC = () => {
     ctx.fillText(fixture.type.substring(0, 2).toUpperCase(), 0, 0);
     ctx.restore();
   }, [state.zoom, feetToScreen]);
-
-  // Main render function
-  const renderCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    drawGrid(ctx);
-    drawPlotBoundary(ctx);
-
-    if (state.rooms && Array.isArray(state.rooms)) {
-      state.rooms.forEach(room => drawRoom(ctx, room, room === selectedElement));
-    }
-
-    if (state.walls && Array.isArray(state.walls)) {
-      state.walls.forEach(wall => drawWall(ctx, wall, wall === selectedElement));
-    }
-
-    if (state.doors && Array.isArray(state.doors)) {
-      state.doors.forEach(door => drawDoor(ctx, door, door === selectedElement));
-    }
-
-    if (state.windows && Array.isArray(state.windows)) {
-      state.windows.forEach(window => drawWindow(ctx, window, window === selectedElement));
-    }
-
-    if (state.fixtures && Array.isArray(state.fixtures)) {
-      state.fixtures.forEach(fixture => drawFixture(ctx, fixture, fixture === selectedElement));
-    }
-
-    // Draw temporary elements
-    if (isDrawing && activeTool === 'room' && drawingPoints.length > 0) {
-      ctx.strokeStyle = '#3498db';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      const first = feetToScreen(drawingPoints[0].x_ft, drawingPoints[0].y_ft);
-      ctx.moveTo(first.x, first.y);
-      for (let i = 1; i < drawingPoints.length; i++) {
-        const point = feetToScreen(drawingPoints[i].x_ft, drawingPoints[i].y_ft);
-        ctx.lineTo(point.x, point.y);
-      }
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    if (isDrawing && activeTool === 'wall' && tempStart) {
-      ctx.strokeStyle = '#3498db';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      const start = feetToScreen(tempStart.x_ft, tempStart.y_ft);
-      ctx.moveTo(start.x, start.y);
-      // Draw to current mouse position would be here
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-  }, [state, selectedElement, activeTool, isDrawing, drawingPoints, tempStart, feetToScreen, drawGrid, drawPlotBoundary, drawRoom, drawWall, drawDoor, drawWindow, drawFixture]);
-
-  useEffect(() => {
-    renderCanvas();
-  }, [renderCanvas]);
 
   // Canvas interaction handlers
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -709,6 +736,68 @@ const MapEditor: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedElement, historyIndex, history.length]);
 
+  // Main render function
+  const renderCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    drawGrid(ctx);
+    drawPlotBoundary(ctx);
+
+    if (state.rooms && Array.isArray(state.rooms)) {
+      state.rooms.forEach(room => drawRoom(ctx, room, room === selectedElement));
+    }
+
+    if (state.walls && Array.isArray(state.walls)) {
+      state.walls.forEach(wall => drawWall(ctx, wall, wall === selectedElement));
+    }
+
+    if (state.doors && Array.isArray(state.doors)) {
+      state.doors.forEach(door => drawDoor(ctx, door, door === selectedElement));
+    }
+
+    if (state.windows && Array.isArray(state.windows)) {
+      state.windows.forEach(window => drawWindow(ctx, window, window === selectedElement));
+    }
+
+    if (state.fixtures && Array.isArray(state.fixtures)) {
+      state.fixtures.forEach(fixture => drawFixture(ctx, fixture, fixture === selectedElement));
+    }
+
+    // Draw temporary elements
+    if (isDrawing && activeTool === 'room' && drawingPoints.length > 0) {
+      ctx.strokeStyle = '#3498db';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      const first = feetToScreen(drawingPoints[0].x_ft, drawingPoints[0].y_ft);
+      ctx.moveTo(first.x, first.y);
+      for (let i = 1; i < drawingPoints.length; i++) {
+        const point = feetToScreen(drawingPoints[i].x_ft, drawingPoints[i].y_ft);
+        ctx.lineTo(point.x, point.y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    if (isDrawing && activeTool === 'wall' && tempStart) {
+      ctx.strokeStyle = '#3498db';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      const start = feetToScreen(tempStart.x_ft, tempStart.y_ft);
+      ctx.moveTo(start.x, start.y);
+      // Draw to current mouse position would be here
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }, [state, selectedElement, activeTool, isDrawing, drawingPoints, tempStart, feetToScreen, drawGrid, drawPlotBoundary, drawRoom, drawWall, drawDoor, drawWindow, drawFixture]);
+
   // Canvas resize
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -725,6 +814,74 @@ const MapEditor: React.FC = () => {
     : 0;
   const plotArea = state.plotSummary.plot_length_ft * state.plotSummary.plot_width_ft;
   const coverage = plotArea > 0 ? ((totalBuiltUpArea / plotArea) * 100).toFixed(1) : '0';
+
+  const handleSave = async (navigateToNext = false) => {
+    if (!projectId && !currentFloorPlanId) {
+      showNotification('Cannot save: No project ID', 'error');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const floorPlanData: Partial<FloorPlan> = {
+        project: projectId!,
+        map_info: state.mapInfo,
+        plot_summary: state.plotSummary,
+        rooms: state.rooms.map(r => ({
+            name: r.name,
+            type: r.type,
+            polygon: r.polygon
+        })),
+        walls: state.walls.map(w => ({
+            start: w.start,
+            end: w.end,
+            thickness_ft: 0.5 // Default thickness
+        })),
+        doors: state.doors.map(d => ({
+            position: d.position,
+            width_ft: d.width,
+            swing: 'left' // Default swing
+        })),
+        windows: state.windows.map(w => ({
+            position: w.position,
+            width_ft: w.width
+        })),
+        fixtures: state.fixtures,
+      };
+
+      let savedPlan;
+      if (currentFloorPlanId) {
+        savedPlan = await floorPlansAPI.update(currentFloorPlanId, floorPlanData);
+      } else {
+        savedPlan = await floorPlansAPI.create(floorPlanData);
+        setCurrentFloorPlanId(savedPlan._id!);
+      }
+
+      showNotification('Floor plan saved successfully', 'success');
+      
+      if (navigateToNext) {
+        if (projectId) {
+          const fpId = savedPlan?._id || currentFloorPlanId;
+          navigate(`/price-prediction/${projectId}${fpId ? `/${fpId}` : ''}`);
+        } else {
+          showNotification('No project ID for navigation', 'warning');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save floor plan:', error);
+      showNotification('Failed to save floor plan', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)', bgcolor: 'background.default' }}>
@@ -768,6 +925,31 @@ const MapEditor: React.FC = () => {
               size="small"
             >
               Export
+            </Button>
+            
+            <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+
+            <Button 
+              variant="contained" 
+              color="primary"
+              startIcon={<Save />}
+              onClick={() => handleSave(false)}
+              disabled={saving}
+              size="small"
+              sx={{ mr: 1 }}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+
+            <Button 
+              variant="contained" 
+              color="secondary"
+              endIcon={<ArrowForward />}
+              onClick={() => handleSave(true)}
+              disabled={saving}
+              size="small"
+            >
+              Next: Price
             </Button>
             
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />

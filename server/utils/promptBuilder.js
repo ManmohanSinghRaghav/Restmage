@@ -62,6 +62,8 @@ You are a licensed AI Architect. Your task is to generate a complete 2D floor pl
 You must generate all individual map elements: rooms, walls, doors, windows, stairs (if needed), and standard fixtures. 
 You must generate the complete JSON response that precisely follows the FloorPlan schema.
 
+IMPORTANT: Return ONLY the raw JSON object. Do not wrap it in markdown code blocks (like \`\`\`json). Do not include any introductory or concluding text.
+
 --- USER REQUIREMENTS ---
 - Plot Dimensions: ${inputs.plot_width_ft}ft Width x ${inputs.plot_length_ft}ft Length
 - Entrance Facing: ${inputs.entrance_facing}

@@ -1,0 +1,30 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\"map_info\":{\"title\":\"Vastu Compliant Floor Plan\",\"author\":\"AI Architect\",\"date\":\"2023-10-27\",\"scale\":\"1:100\",\"north_direction\":\"Top\"},\"plot_summary\":{\"plot_width_ft\":100,\"plot_length_ft\":100,\"setback_front_ft\":3,\"setback_rear_ft\":3,\"setback_side_left_ft\":3,\"setback_side_right_ft\":3},\"rooms\":[{\"name\":\"Hallway\",\"type\":\"hallway\",\"polygon\":[{\"x_ft\":20.5,\"y_ft\":39.5},{\"x_ft\":79.5,\"y_ft\":39.5},{\"x_ft\":79.5,\"y_ft\":44.5},{\"x_ft\":20.5,\"y_ft\":44.5}]},{\"name\":\"Living Room\",\"type\":\"living_room\",\"polygon\":[{\"x_ft\":50.5,\"y_ft\":45},{\"x_ft\":79.5,\"y_ft\":45},{\"x_ft\":79.5,\"y_ft\":64.5},{\"x_ft\":50.5,\"y_ft\":64.5}]},{\"name\":\"Kitchen\",\"type\":\"kitchen\",\"polygon\":[{\"x_ft\":50.5,\"y_ft\":20.5},{\"x_ft\":79.5,\"y_ft\":20.5},{\"x_ft\":79.5,\"y_ft\":38.5},{\"x_ft\":50.5,\"y_ft\":38.5}]},{\"name\":\"Master Bedroom\",\"type\":\"bedroom\",\"polygon\":[{\"x_ft\":20.5,\"y_ft\":20.5},{\"x_ft\":35.5,\"y_ft\":20.5},{\"x_ft\":35.5,\"y_ft\":38.5},{\"x_ft\":20.5,\"y_ft\":38.5}]},{\"name\":\"Master Bathroom\",\"type\":\"bathroom\",\"polygon\":[{\"x_ft\":36,\"y_ft\":20.5},{\"x_ft\":43.5,\"y_ft\":20.5},{\"x_ft\":43.5,\"y_ft\":27.5},{\"x_ft\":36,\"y_ft\":27.5}]},{\"name\":\"Bedroom 2\",\"type\":\"bedroom\",\"polygon\":[{\"x_ft\":20.5,\"y_ft\":45},{\"x_ft\":35.5,\"y_ft\":45},{\"x_ft\":35.5,\"y_ft\":64.5},{\"x_ft\":20.5,\"y_ft\":64.5}]},{\"name\":\"Bathroom 2\",\"type\":\"bathroom\",\"polygon\":[{\"x_ft\":36,\"y_ft\":45},{\"x_ft\":43.5,\"y_ft\":45},{\"x_ft\":43.5,\"y_ft\":52},{\"x_ft\":36,\"y_ft\":52}]},{\"name\":\"Passage\",\"type\":\"hallway\",\"polygon\":[{\"x_ft\":44,\"y_ft\":20.5},{\"x_ft\":50,\"y_ft\":20.5},{\"x_ft\":50,\"y_ft\":38.5},{\"x_ft\":44,\"y_ft\":38.5}]},{\"name\":\"Passage\",\"type\":\"hallway\",\"polygon\":[{\"x_ft\":44,\"y_ft\":45},{\"x_ft\":50,\"y_ft\":45},{\"x_ft\":50,\"y_ft\":64.5},{\"x_ft\":44,\"y_ft\":64.5}]}],\"walls\":[{\"start\":{\"x_ft\":20,\"y_ft\":20},\"end\":{\"x_ft\":80,\"y_ft\":20},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":80,\"y_ft\":20},\"end\":{\"x_ft\":80,\"y_ft\":65},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":80,\"y_ft\":65},\"end\":{\"x_ft\":20,\"y_ft\":65},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":20,\"y_ft\":65},\"end\":{\"x_ft\":20,\"y_ft\":20},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":20.5,\"y_ft\":39.5},\"end\":{\"x_ft\":79.5,\"y_ft\":39.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":20.5,\"y_ft\":44.5},\"end\":{\"x_ft\":79.5,\"y_ft\":44.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":35.5,\"y_ft\":20.5},\"end\":{\"x_ft\":35.5,\"y_ft\":38.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":44,\"y_ft\":20.5},\"end\":{\"x_ft\":44,\"y_ft\":38.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":50.5,\"y_ft\":20.5},\"end\":{\"x_ft\":50.5,\"y_ft\":38.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":35.5,\"y_ft\":45},\"end\":{\"x_ft\":35.5,\"y_ft\":64.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":44,\"y_ft\":45},\"end\":{\"x_ft\":44,\"y_ft\":64.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":50.5,\"y_ft\":45},\"end\":{\"x_ft\":50.5,\"y_ft\":64.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":43.5,\"y_ft\":27.5},\"end\":{\"x_ft\":43.5,\"y_ft\":38.5},\"thickness_ft\":0.5},{\"start\":{\"x_ft\":43.5,\"y_ft\":45},\"end\":{\"x_ft\":43.5,\"y_ft\":52},\"thickness_ft\":0.5}],\"doors\":[{\"position\":{\"x_ft\":20,\"y_ft\":41.5},\"width_ft\":3,\"swing\":\"inward\"},{\"position\":{\"x_ft\":30,\"y_ft\":39.5},\"width_ft\":3,\"swing\":\"inward\"},{\"position\":{\"x_ft\":38.5,\"y_ft\":27.5},\"width_ft\":3,\"swing\":\"inward\"},{\"position\":{\"x_ft\":65,\"y_ft\":39.5},\"width_ft\":3,\"swing\":\"inward\"},{\"position\":{\"x_ft\":65,\"y_ft\":44.5},\"width_ft\":3,\"swing\":\"inward\"},{\"position\":{\"x_ft\":30,\"y_ft\":44.5},\"width_ft\":3,\"swing\":\"inward\"},{\"position\":{\"x_ft\":39.5,\"y_ft\":44.5},\"width_ft\":3,\"swing\":\"inward\"}],\"windows\":[{\"position\":{\"x_ft\":20,\"y_ft\":25},\"width_ft\":4},{\"position\":{\"x_ft\":20,\"y_ft\":50},\"width_ft\":4},{\"position\":{\"x_ft\":20,\"y_ft\":60},\"width_ft\":4},{\"position\":{\"x_ft\":80,\"y_ft\":25},\"width_ft\":4},{\"position\":{\"x_ft\":80,\"y_ft\":50},\"width_ft\":4},{\"position\":{\"x_ft\":80,\"y_ft\":60},\"width_ft\":4},{\"position\":{\"x_ft\":55,\"y_ft\":20},\"width_ft\":4},{\"position\":{\"x_ft\":60,\"y_ft\":65},\"width_ft\":4},{\"position\":{\"x_ft\":30,\"y_ft\":65},\"width_ft\":4}],\"fixtures\":[{\"position\":{\"x_ft\":39.5,\"y_ft\":21.5},\"type\":\"toilet\",\"rotation\":0},{\"position\":{\"x_ft\":37,\"y_ft\":21.5},\"type\":\"sink\",\"rotation\":0},{\"position\":{\"x_ft\":39.5,\"y_ft\":46},\"type\":\"toilet\",\"rotation\":0},{\"position\":{\"x_ft\":37,\"y_ft\":46},\"type\":\"sink\",\"rotation\":0},{\"position\":{\"x_ft\":52,\"y_ft\":37},\"type\":\"kitchen_sink\",\"rotation\":90},{\"position\":{\"x_ft\":56,\"y_ft\":37},\"type\":\"stove\",\"rotation\":90}]}"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 449,
+    "candidatesTokenCount": 2025,
+    "totalTokenCount": 8969,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 449
+      }
+    ],
+    "thoughtsTokenCount": 6495
+  },
+  "modelVersion": "gemini-2.5-flash",
+  "responseId": "GzopaZORC922juMP7bzS8A0"
+}

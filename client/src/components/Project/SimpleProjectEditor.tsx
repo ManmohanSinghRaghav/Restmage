@@ -27,7 +27,6 @@ import {
   Delete as DeleteIcon,
   Calculate as CalculateIcon,
 } from '@mui/icons-material';
-import MapEditor from '../MapEditor/MapEditor';
 import { Project } from '../../types';
 import { projectsAPI, costAPI } from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -121,13 +120,16 @@ const SimpleProjectEditor: React.FC = () => {
         setProject(savedProject);
         console.log('✅ Project created:', savedProject._id);
         showNotification('Project created successfully', 'success');
-        navigate(`/project/${savedProject._id}/edit`);
+        // Navigate to floor plan editor
+        navigate(`/floorplan/${savedProject._id}`);
       } else {
         console.log('💾 Updating project:', project._id);
         const updatedProject = await projectsAPI.updateProject(project._id!, project);
         setProject(updatedProject);
         console.log('✅ Project updated:', updatedProject._id);
         showNotification('Project saved successfully', 'success');
+        // Navigate to floor plan editor
+        navigate(`/floorplan/${updatedProject._id}`);
       }
     } catch (error: any) {
       console.error('❌ Save failed:', error);
@@ -202,7 +204,7 @@ const SimpleProjectEditor: React.FC = () => {
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? 'Saving...' : 'Save Project'}
+            {saving ? 'Saving...' : 'Next: Floor Plan'}
           </Button>
         </Box>
 
@@ -459,16 +461,8 @@ const SimpleProjectEditor: React.FC = () => {
           </TableContainer>
         </Paper>
 
-        {/* Floor Plan Editor */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Floor Plan Editor</Typography>
-          <Box sx={{ height: 600, border: '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
-            <MapEditor />
-          </Box>
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Use the drawing tools to add markers and shapes to your property map.
-          </Alert>
-        </Paper>
+        {/* Floor Plan Editor - REMOVED */}
+        {/* The floor plan editor has been moved to a separate step in the workflow */}
       </Box>
     </Container>
   );

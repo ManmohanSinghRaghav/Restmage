@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import { Home as HomeIcon } from '@mui/icons-material';
 import { floorPlansAPI, projectsAPI } from '../../services/api';
+import { generateFloorPlan as generateFloorPlanAI } from '../../services/geminiFloorPlan';
 import { Project } from '../../types';
 import { FloorPlanInputs } from '../../types/floorPlan.types';
 
@@ -20,17 +21,17 @@ const FloorPlanGenerator: React.FC<FloorPlanGeneratorProps> = ({ projectId: prop
   const projectId = propProjectId || urlProjectId;
 
   // Property inputs
-  const [plotWidth, setPlotWidth] = useState<number>(40);
-  const [plotLength, setPlotLength] = useState<number>(60);
-  const [entranceFacing, setEntranceFacing] = useState<string>('North');
-  const [setbackFront, setSetbackFront] = useState<number>(5);
+  const [plotWidth, setPlotWidth] = useState<number>(60);
+  const [plotLength, setPlotLength] = useState<number>(40);
+  const [entranceFacing, setEntranceFacing] = useState<string>('West');
+  const [setbackFront, setSetbackFront] = useState<number>(3);
   const [setbackRear, setSetbackRear] = useState<number>(3);
   const [setbackSideLeft, setSetbackSideLeft] = useState<number>(3);
   const [setbackSideRight, setSetbackSideRight] = useState<number>(3);
-  const [rooms, setRooms] = useState<string>('2BHK');
+  const [rooms, setRooms] = useState<string>('2 Bedrooms, 2 Bathrooms, 1 Living Room, 1 Kitchen');
   const [floors, setFloors] = useState<number>(1);
-  const [location, setLocation] = useState<string>('');
-  const [vastuCompliance, setVastuCompliance] = useState<boolean>(false);
+  const [location, setLocation] = useState<string>('Mathura, India');
+  const [vastuCompliance, setVastuCompliance] = useState<boolean>(true);
 
   // Project selection for standalone usage
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -115,10 +116,26 @@ const FloorPlanGenerator: React.FC<FloorPlanGeneratorProps> = ({ projectId: prop
         vastu_compliance: vastuCompliance,
       };
 
-      const floorPlan = await floorPlansAPI.generateAI(targetProjectId, inputs);
+      // Generate floor plan using the working endpoint
+      const generatedPlan = await generateFloorPlanAI(inputs);
+      
+      // Save to database with project link
+      const savedFloorPlan = await floorPlansAPI.create({
+        project: targetProjectId,
+        name: `AI Floor Plan - ${new Date().toLocaleDateString()}`,
+        map_info: generatedPlan.map_info,
+        plot_summary: generatedPlan.plot_summary,
+        rooms: generatedPlan.rooms,
+        walls: generatedPlan.walls,
+        doors: generatedPlan.doors,
+        windows: generatedPlan.windows,
+        fixtures: generatedPlan.fixtures,
+        generatedBy: 'ai',
+        isActive: true,
+      });
       
       // Navigate to editor
-      navigate(`/floorplans/${floorPlan._id}/edit`);
+      navigate(`/floorplans/${savedFloorPlan._id}/edit`);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to generate floor plan');
     } finally {
@@ -256,21 +273,13 @@ const FloorPlanGenerator: React.FC<FloorPlanGeneratorProps> = ({ projectId: prop
             </Select>
           </FormControl>
 
-          <FormControl sx={{ flex: 1, minWidth: 150 }}>
-            <InputLabel>Room Configuration</InputLabel>
-            <Select
-              value={rooms}
-              label="Room Configuration"
-              onChange={(e) => setRooms(e.target.value)}
-            >
-              <MenuItem value="1BHK">1BHK</MenuItem>
-              <MenuItem value="2BHK">2BHK</MenuItem>
-              <MenuItem value="3BHK">3BHK</MenuItem>
-              <MenuItem value="4BHK">4BHK</MenuItem>
-              <MenuItem value="Villa">Villa</MenuItem>
-              <MenuItem value="Duplex">Duplex</MenuItem>
-            </Select>
-          </FormControl>
+          <TextField
+            label="Room Configuration"
+            value={rooms}
+            onChange={(e) => setRooms(e.target.value)}
+            placeholder="e.g., 3 Bedrooms, 2 Bathrooms, Kitchen, Living Room"
+            sx={{ flex: 2, minWidth: 300 }}
+          />
 
           <TextField
             label="Number of Floors"

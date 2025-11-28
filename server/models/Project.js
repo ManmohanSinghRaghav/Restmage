@@ -93,6 +93,10 @@ const projectSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CostEstimate'
   },
+  activePricePrediction: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PricePrediction'
+  },
   status: {
     type: String,
     enum: ['draft', 'in-progress', 'completed', 'archived'],
@@ -131,6 +135,13 @@ projectSchema.virtual('floorPlans', {
 // Virtual populate for cost estimates
 projectSchema.virtual('costEstimates', {
   ref: 'CostEstimate',
+  localField: '_id',
+  foreignField: 'project'
+});
+
+// Virtual populate for price predictions
+projectSchema.virtual('pricePredictions', {
+  ref: 'PricePrediction',
   localField: '_id',
   foreignField: 'project'
 });

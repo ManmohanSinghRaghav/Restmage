@@ -9,7 +9,11 @@ const getDefaultApiBaseUrl = (): string => {
   try {
     const win: any = (typeof window !== 'undefined') ? window : undefined;
     const protocol = win?.location?.protocol || 'http:';
-    const hostname = win?.location?.hostname || 'localhost';
+    // Normalize 127.0.0.1 to localhost to avoid CORS issues
+    let hostname = win?.location?.hostname || 'localhost';
+    if (hostname === '127.0.0.1') {
+      hostname = 'localhost';
+    }
     const port = process.env.REACT_APP_API_PORT || '5000';
     return `${protocol}//${hostname}:${port}/api`;
   } catch {
@@ -237,37 +241,37 @@ export const exportAPI = {
 
 export const floorPlansAPI = {
   list: async (projectId?: string): Promise<FloorPlan[]> => {
-    const params = projectId ? { project: projectId } : {};
-    const response = await api.get('/floorplans', { params });
+    const params = projectId ? { projectId } : {};
+    const response = await api.get('/floorplan/list', { params });
     return response.data?.floorPlans || [];
   },
 
   get: async (id: string): Promise<FloorPlan> => {
-    const response = await api.get(`/floorplans/${id}`);
+    const response = await api.get(`/floorplan/${id}`);
     return response.data.floorPlan;
   },
 
   generateAI: async (projectId: string, inputs: FloorPlanInputs): Promise<FloorPlan> => {
-    const response = await api.post('/floorplans/generate-ai', { projectId, ...inputs });
+    const response = await api.post('/floorplan/generate-ai', { projectId, inputs });
     return response.data.floorPlan;
   },
 
   create: async (data: Partial<FloorPlan>): Promise<FloorPlan> => {
-    const response = await api.post('/floorplans', data);
-    return response.data.floorPlan;
+    const response = await api.post('/floorplan/save', data);
+    return response.data.floorPlan || response.data;
   },
 
   update: async (id: string, data: Partial<FloorPlan>): Promise<FloorPlan> => {
-    const response = await api.put(`/floorplans/${id}`, data);
+    const response = await api.put(`/floorplan/${id}`, data);
     return response.data.floorPlan;
   },
 
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/floorplans/${id}`);
+    await api.delete(`/floorplan/${id}`);
   },
 
   activate: async (id: string): Promise<FloorPlan> => {
-    const response = await api.post(`/floorplans/${id}/activate`);
+    const response = await api.post(`/floorplan/${id}/activate`);
     return response.data.floorPlan;
   },
 };

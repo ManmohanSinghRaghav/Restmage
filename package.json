@@ -4,7 +4,7 @@
   "description": "Real Estate Map Generator - Full-stack web application for real estate planning and cost estimation",
   "main": "server/server.js",
   "scripts": {
-    "install": "npm run install:server && npm run install:client",
+    "postinstall": "npm run install:server && npm run install:client",
     "install:server": "cd server && npm install",
     "install:client": "cd client && npm install",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
@@ -33,7 +33,7 @@
   "devDependencies": {
     "concurrently": "^7.6.0"
   },
-  "dependencies": {
-    "react-scripts": "^0.0.0"
+  "engines": {
+    "node": ">=14.0.0"
   }
 }

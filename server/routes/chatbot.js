@@ -1,29 +1,26 @@
 const express = require('express');
 const axios = require('axios');
 const { auth } = require('../middleware/auth');
+const OpenAI = require('openai');
+const Message = require('../models/Message');
 
 const router = express.Router();
 
+// Initialize OpenAI conditionally
+let openai;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
+
 /**
  * Chatbot for Real Estate Assistance
- * Uses OpenAI ChatGPT API for intelligent responses
- * Falls back to rule-based responses if API is unavailable
+ * Uses rule-based responses with contextual understanding
+ * Can be enhanced with Hugging Face API for more advanced NLP
  */
 
-// System prompt for ChatGPT
-const SYSTEM_PROMPT = `You are a smart, friendly real estate assistant specializing in the Indian subcontinent (India, Pakistan, Bangladesh, Nepal, Sri Lanka, Bhutan). Tailor answers to local context: use common units (sq ft / sq m), default to INR for price examples unless user specifies another local currency, and use local real-estate terms (e.g., BHK, builder-floor, independent house, plot, FAR, RERA where applicable).
-
-Key focus areas:
-- Floor plan design & layout optimization for Indian homes (consider Vastu preferences if asked)
-- Price estimation and market drivers (location, carpet vs super built-up area, amenities, city/region variance)
-- Room sizes, typical measurements, and efficient use of space in Indian housing
-- Construction materials & monsoon/heat-resilient design, rainwater harvesting, solar options
-- Local compliance hints (approvals, RERA mentions) — do not give legal/financial advice; recommend consulting local experts
-- Ask clarifying questions: city/state, budget, total area, number of BHKs, and priority features
-
-Keep responses concise (under 200 words) unless the user requests more detail. Be practical, culturally aware, and ask follow-up questions to refine recommendations.`;
-
-// Knowledge base for real estate chatbot
+// Knowledge base for real estate chatbot (Fallback)
 const KNOWLEDGE_BASE = {
   greetings: [
     'Hello! I\'m your real estate assistant. How can I help you today?',
@@ -66,46 +63,9 @@ const KNOWLEDGE_BASE = {
 };
 
 /**
- * Generate chatbot response using OpenAI ChatGPT API
+ * Analyze user message and generate appropriate response
  */
-async function generateChatGPTResponse(message) {
-  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-  if (!OPENAI_API_KEY) {
-    throw new Error('OpenAI API key not configured');
-  }
-
-  try {
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: message }
-        ],
-        temperature: 0.7,
-        max_tokens: 500
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    return response.data.choices[0].message.content.trim();
-  } catch (error) {
-    console.error('OpenAI API Error:', error.response?.data || error.message);
-    throw error;
-  }
-}
-
-/**
- * Fallback function for rule-based responses
- */
-function generateFallbackResponse(message) {
+function generateChatbotResponse(message) {
   const lowerMessage = message.toLowerCase();
 
   // Check for greetings
@@ -113,26 +73,39 @@ function generateFallbackResponse(message) {
     return getRandomResponse(KNOWLEDGE_BASE.greetings);
   }
 
-  // Check each knowledge category
-  for (const [category, data] of Object.entries(KNOWLEDGE_BASE)) {
-    if (category === 'greetings') continue;
-
-    const matched = data.keywords.some(keyword => lowerMessage.includes(keyword));
-    if (matched) {
-      return getRandomResponse(data.responses);
+  // Check for floor plan related queries
+  for (const keyword of KNOWLEDGE_BASE.floorPlan.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.floorPlan.responses);
     }
   }
 
-  // Extract numbers and room types from message
-  const roomMatch = lowerMessage.match(/(\d+)\s*(bedroom|bathroom|kitchen|living room|dining room)/g);
-  if (roomMatch) {
-    return `I see you're interested in a property with ${roomMatch.join(', ')}. To generate a detailed floor plan, please provide the property dimensions (width x height in feet). For example: "50 feet by 40 feet" or "50x40".`;
+  // Check for pricing related queries
+  for (const keyword of KNOWLEDGE_BASE.pricing.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.pricing.responses);
+    }
   }
 
-  // Extract dimensions
-  const dimensionMatch = lowerMessage.match(/(\d+)\s*(?:x|by|×)\s*(\d+)/);
-  if (dimensionMatch) {
-    return `Perfect! For a ${dimensionMatch[1]}x${dimensionMatch[2]} feet property, I can create a floor plan. How many bedrooms, bathrooms, and other rooms would you like?`;
+  // Check for room size queries
+  for (const keyword of KNOWLEDGE_BASE.roomSizes.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.roomSizes.responses);
+    }
+  }
+
+  // Check for feature/capability inquiries
+  for (const keyword of KNOWLEDGE_BASE.features.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.features.responses);
+    }
+  }
+
+  // Check for tips and advice
+  for (const keyword of KNOWLEDGE_BASE.tips.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.tips.responses);
+    }
   }
 
   // Default response
@@ -144,6 +117,32 @@ function generateFallbackResponse(message) {
 • Design tips and advice
 
 What would you like to know?`;
+}
+
+/**
+ * Generate response using OpenAI GPT
+ */
+async function generateAIResponse(message) {
+  if (!openai) {
+    throw new Error('OpenAI API key not configured');
+  }
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a helpful and knowledgeable Real Estate Assistant for the Restmage application. You help users with floor plan designs, property price estimation, and general real estate advice. Be professional, concise, and friendly. If asked about floor plans, ask for dimensions and room requirements. If asked about price, ask for location, area, and amenities." 
+        },
+        { role: "user", content: message }
+      ],
+      model: "gpt-3.5-turbo",
+    });
+
+    return completion.choices[0].message.content;
+  } catch (error) {
+    console.error("OpenAI API Error:", error);
+    throw error;
+  }
 }
 
 function getRandomResponse(responses) {
@@ -163,27 +162,48 @@ router.post('/message', auth, async (req, res) => {
     }
 
     let response;
-    let source = 'chatgpt';
+    let source = 'rule-based';
 
-    try {
-      // Try to use ChatGPT API first
-      console.log('Attempting to use ChatGPT API...');
-      response = await generateChatGPTResponse(message);
-      console.log('✅ ChatGPT API responded successfully');
-    } catch (error) {
-      // Fallback to rule-based if ChatGPT fails
-      console.warn('⚠️  ChatGPT unavailable, using fallback:', error.message);
-      response = generateFallbackResponse(message);
-      source = 'rule-based';
+    // Try OpenAI if API key is present
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        response = await generateAIResponse(message);
+        source = 'openai';
+      } catch (err) {
+        console.warn('OpenAI failed, falling back to rules:', err.message);
+        response = generateChatbotResponse(message);
+      }
+    } else {
+      response = generateChatbotResponse(message);
     }
+
+    // Save user message
+    const userMsg = new Message({
+      conversationId: conversationId || `conv_${Date.now()}`,
+      user: req.user._id,
+      role: 'user',
+      content: message,
+      source: 'user'
+    });
+    await userMsg.save();
+
+    // Save bot response
+    const botMsg = new Message({
+      conversationId: userMsg.conversationId,
+      user: req.user._id,
+      role: 'assistant',
+      content: response,
+      source: source
+    });
+    await botMsg.save();
 
     res.json({
       success: true,
-      conversationId: conversationId || `conv_${Date.now()}`,
+      conversationId: userMsg.conversationId,
       userMessage: message,
       botResponse: response,
       source,
-      timestamp: new Date().toISOString()
+      timestamp: botMsg.createdAt
     });
   } catch (error) {
     console.error('Chatbot error:', error);
@@ -273,6 +293,27 @@ router.get('/suggestions', (req, res) => {
   ];
 
   res.json({ suggestions });
+});
+
+/**
+ * GET /api/chatbot/history/:conversationId
+ * Get chat history
+ */
+router.get('/history/:conversationId', auth, async (req, res) => {
+  try {
+    const messages = await Message.find({
+      conversationId: req.params.conversationId,
+      user: req.user._id
+    }).sort({ createdAt: 1 });
+
+    res.json({
+      success: true,
+      messages
+    });
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    res.status(500).json({ message: 'Failed to fetch chat history' });
+  }
 });
 
 module.exports = router;

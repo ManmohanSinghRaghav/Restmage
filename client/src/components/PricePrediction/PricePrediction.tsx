@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -15,14 +15,18 @@ import {
   Alert,
   Autocomplete,
   CircularProgress,
-  Divider
+  Divider,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
-  TrendingUp as TrendIcon
+  TrendingUp as TrendIcon,
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
-import { costEstimatesAPI, projectsAPI, floorPlansAPI } from '../../services/api';
-import { Project, CostEstimate } from '../../types';
+import { projectsAPI, floorPlansAPI } from '../../services/api';
+import api from '../../services/api';
+import { Project } from '../../types';
 import { FloorPlan } from '../../types/floorPlan.types';
 
 interface CostEstimateComponentProps {
@@ -30,10 +34,13 @@ interface CostEstimateComponentProps {
   floorPlanId?: string;
 }
 
+const AMENITIES = ['garage', 'garden', 'pool', 'basement', 'balcony'];
+
 const PricePrediction: React.FC<CostEstimateComponentProps> = ({ 
   projectId: propProjectId, 
   floorPlanId: propFloorPlanId 
 }) => {
+  const navigate = useNavigate();
   const { projectId: urlProjectId, floorPlanId: urlFloorPlanId } = useParams<{ 
     projectId: string; 
     floorPlanId: string;  
@@ -42,11 +49,16 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
   const projectId = propProjectId || urlProjectId;
   const floorPlanId = propFloorPlanId || urlFloorPlanId;
 
-  // Property details
-  const [area, setArea] = useState<number>(1500);
-  const [propertyType, setPropertyType] = useState<'residential' | 'commercial'>('residential');
-  const [floors, setFloors] = useState<number>(1);
-  const [qualityLevel, setQualityLevel] = useState<'basic' | 'standard' | 'premium'>('standard');
+  // Form Data for ML Prediction
+  const [formData, setFormData] = useState({
+    area: 1500,
+    bedrooms: 3,
+    bathrooms: 2,
+    age: 5,
+    location: 'Suburban',
+    condition: 'Good',
+    amenities: [] as string[]
+  });
 
   // Project/Floor plan selection for standalone usage
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -57,7 +69,7 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [floorPlansLoading, setFloorPlansLoading] = useState(false);
 
-  const [estimate, setEstimate] = useState<CostEstimate | null>(null);
+  const [prediction, setPrediction] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,12 +108,7 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
       if (project.propertyDetails?.dimensions) {
         const dims = project.propertyDetails.dimensions;
         if (dims.unit === 'feet') {
-          setArea(dims.length * dims.width);
-        }
-      }
-      if (project.propertyDetails?.type) {
-        if (project.propertyDetails.type === 'residential' || project.propertyDetails.type === 'commercial') {
-          setPropertyType(project.propertyDetails.type);
+          setFormData(prev => ({ ...prev, area: dims.length * dims.width }));
         }
       }
     } catch (err: any) {
@@ -115,7 +122,7 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
       setSelectedFloorPlan(floorPlan);
       // Pre-fill inputs from floor plan
       const plotArea = floorPlan.plot_summary.plot_width_ft * floorPlan.plot_summary.plot_length_ft;
-      setArea(plotArea);
+      setFormData(prev => ({ ...prev, area: plotArea }));
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to load floor plan');
     }
@@ -145,37 +152,33 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
     }
   };
 
-  const calculateCost = async () => {
+  const handleInputChange = (field: string, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const toggleAmenity = (amenity: string) => {
+    setFormData(prev => {
+      const newAmenities = prev.amenities.includes(amenity)
+        ? prev.amenities.filter(a => a !== amenity)
+        : [...prev.amenities, amenity];
+      return { ...prev, amenities: newAmenities };
+    });
+  };
+
+  const calculatePrice = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // Validate that we have a project
-      if (!projectId && !selectedProject) {
-        setError('Please select a project to calculate cost');
-        setLoading(false);
-        return;
+      // Use the new ML-based prediction endpoint
+      const response = await api.post('/price-prediction/ml-predict', formData);
+      if (response.data.success) {
+        setPrediction(response.data.prediction);
+      } else {
+        setError(response.data.message || 'Prediction failed');
       }
-
-      const targetProjectId = projectId || selectedProject!._id;
-      const targetFloorPlanId = floorPlanId || selectedFloorPlan?._id;
-
-      const inputs = {
-        area,
-        propertyType,
-        floors,
-        qualityLevel,
-      };
-
-      const costEstimate = await costEstimatesAPI.calculate(
-        targetProjectId,
-        targetFloorPlanId,
-        inputs
-      );
-      
-      setEstimate(costEstimate);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to calculate cost estimate');
+      setError(err.response?.data?.message || 'Failed to calculate price prediction');
     } finally {
       setLoading(false);
     }
@@ -196,7 +199,7 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
           <MoneyIcon sx={{ fontSize: 40, mr: 2, color: 'primary.main' }} />
           <Typography variant="h4">
-            Cost Estimation
+            Market Price Prediction
           </Typography>
         </Box>
 
@@ -210,7 +213,7 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
         {!projectId && (
           <Box sx={{ mb: 3 }}>
             <Typography variant="h6" gutterBottom>
-              Select Project
+              Select Project (Optional)
             </Typography>
             <Autocomplete
               options={availableProjects}
@@ -240,29 +243,38 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
                 />
               )}
             />
-          </Box>
-        )}
 
-        {/* Floor Plan Selection (optional) */}
-        {!floorPlanId && selectedProject && availableFloorPlans.length > 0 && (
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Select Floor Plan (Optional)
-            </Typography>
-            <Autocomplete
-              options={availableFloorPlans}
-              getOptionLabel={(option) => option.name || `Version ${option.version}`}
-              value={selectedFloorPlan}
-              onChange={(_, newValue) => setSelectedFloorPlan(newValue)}
-              loading={floorPlansLoading}
-              renderInput={(params) => (
-                <TextField
-                  {...params}
-                  label="Select floor plan for cost calculation"
-                  placeholder="Optional - costs will be based on floor plan dimensions"
-                />
-              )}
-            />
+            {selectedProject && (
+              <Autocomplete
+                sx={{ mt: 2 }}
+                options={availableFloorPlans}
+                getOptionLabel={(option) => option.name || 'Unnamed Floor Plan'}
+                value={selectedFloorPlan}
+                onChange={(_, newValue) => {
+                  setSelectedFloorPlan(newValue);
+                  if (newValue) loadFloorPlan(newValue._id);
+                }}
+                loading={floorPlansLoading}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Floor Plan (Optional)"
+                    placeholder="Choose a floor plan to auto-fill details"
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {floorPlansLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            )}
+            
+            <Divider sx={{ mt: 3 }} />
           </Box>
         )}
 
@@ -273,49 +285,85 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
               Property Details
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <TextField
                 fullWidth
                 label="Total Area (sq ft)"
                 type="number"
-                value={area}
-                onChange={(e) => setArea(Number(e.target.value))}
-                inputProps={{ min: 100, max: 50000 }}
+                value={formData.area}
+                onChange={(e) => handleInputChange('area', Number(e.target.value))}
+                inputProps={{ min: 100 }}
               />
-
-              <FormControl fullWidth>
-                <InputLabel>Property Type</InputLabel>
-                <Select
-                  value={propertyType}
-                  label="Property Type"
-                  onChange={(e) => setPropertyType(e.target.value as 'residential' | 'commercial')}
-                >
-                  <MenuItem value="residential">Residential</MenuItem>
-                  <MenuItem value="commercial">Commercial</MenuItem>
-                </Select>
-              </FormControl>
-
               <TextField
                 fullWidth
-                label="Number of Floors"
+                label="Age (Years)"
                 type="number"
-                value={floors}
-                onChange={(e) => setFloors(Number(e.target.value))}
-                inputProps={{ min: 1, max: 10 }}
+                value={formData.age}
+                onChange={(e) => handleInputChange('age', Number(e.target.value))}
+                inputProps={{ min: 0 }}
               />
-
+              <TextField
+                fullWidth
+                label="Bedrooms"
+                type="number"
+                value={formData.bedrooms}
+                onChange={(e) => handleInputChange('bedrooms', Number(e.target.value))}
+                inputProps={{ min: 0 }}
+              />
+              <TextField
+                fullWidth
+                label="Bathrooms"
+                type="number"
+                value={formData.bathrooms}
+                onChange={(e) => handleInputChange('bathrooms', Number(e.target.value))}
+                inputProps={{ min: 0 }}
+              />
               <FormControl fullWidth>
-                <InputLabel>Quality Level</InputLabel>
+                <InputLabel>Location</InputLabel>
                 <Select
-                  value={qualityLevel}
-                  label="Quality Level"
-                  onChange={(e) => setQualityLevel(e.target.value as 'basic' | 'standard' | 'premium')}
+                  value={formData.location}
+                  label="Location"
+                  onChange={(e) => handleInputChange('location', e.target.value)}
                 >
-                  <MenuItem value="basic">Basic (₹800-1200/sq ft)</MenuItem>
-                  <MenuItem value="standard">Standard (₹1200-1800/sq ft)</MenuItem>
-                  <MenuItem value="premium">Premium (₹1800-3000/sq ft)</MenuItem>
+                  <MenuItem value="Urban">Urban</MenuItem>
+                  <MenuItem value="Suburban">Suburban</MenuItem>
+                  <MenuItem value="Rural">Rural</MenuItem>
+                  <MenuItem value="Downtown">Downtown</MenuItem>
                 </Select>
               </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Condition</InputLabel>
+                <Select
+                  value={formData.condition}
+                  label="Condition"
+                  onChange={(e) => handleInputChange('condition', e.target.value)}
+                >
+                  <MenuItem value="Excellent">Excellent</MenuItem>
+                  <MenuItem value="Good">Good</MenuItem>
+                  <MenuItem value="Fair">Fair</MenuItem>
+                  <MenuItem value="Poor">Poor</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Amenities
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                {AMENITIES.map((amenity) => (
+                  <FormControlLabel
+                    key={amenity}
+                    control={
+                      <Checkbox
+                        checked={formData.amenities.includes(amenity)}
+                        onChange={() => toggleAmenity(amenity)}
+                      />
+                    }
+                    label={amenity.charAt(0).toUpperCase() + amenity.slice(1)}
+                  />
+                ))}
+              </Box>
             </Box>
 
             <Button
@@ -323,34 +371,44 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
               size="large"
               fullWidth
               sx={{ mt: 3 }}
-              onClick={calculateCost}
-              disabled={loading || (!projectId && !selectedProject)}
+              onClick={calculatePrice}
+              disabled={loading}
             >
-              {loading ? 'Calculating...' : 'Calculate Cost'}
+              {loading ? 'Calculating...' : 'Predict Price'}
             </Button>
 
-            {!projectId && !selectedProject && (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Please select a project to calculate cost estimate
-              </Alert>
+            {projectId && prediction && (
+              <Button
+                variant="outlined"
+                size="large"
+                fullWidth
+                sx={{ mt: 2 }}
+                startIcon={<CheckCircleIcon />}
+                onClick={() => navigate(`/project/${projectId}`)}
+              >
+                Finish & View Project
+              </Button>
             )}
           </Box>
 
           {/* Results */}
           <Box sx={{ flex: 1 }}>
-            {estimate ? (
+            {prediction ? (
               <>
                 <Typography variant="h6" gutterBottom>
-                  Cost Estimate
+                  Price Prediction
                 </Typography>
 
                 <Card sx={{ mb: 2, bgcolor: 'primary.light', color: 'white' }}>
                   <CardContent>
                     <Typography variant="h3" align="center" gutterBottom>
-                      {formatCurrency(estimate.total)}
+                      {formatCurrency(prediction.estimatedPrice)}
                     </Typography>
                     <Typography variant="body1" align="center">
-                      Total Estimated Cost
+                      Estimated Market Value
+                    </Typography>
+                    <Typography variant="caption" display="block" align="center" sx={{ mt: 1 }}>
+                      Range: {formatCurrency(prediction.priceRange.min)} - {formatCurrency(prediction.priceRange.max)}
                     </Typography>
                   </CardContent>
                 </Card>
@@ -358,72 +416,50 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Cost Breakdown
+                      Value Breakdown
                     </Typography>
 
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Materials</Typography>
-                        <Typography variant="body2">
-                          {formatCurrency(estimate.materials)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Labor</Typography>
-                        <Typography variant="body2">
-                          {formatCurrency(estimate.labor)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Permits & Approvals</Typography>
-                        <Typography variant="body2">
-                          {formatCurrency(estimate.permits)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Equipment</Typography>
-                        <Typography variant="body2">
-                          {formatCurrency(estimate.equipment)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Divider sx={{ my: 2 }} />
-
-                    {estimate.breakdown && estimate.breakdown.length > 0 && (
+                    {prediction.breakdown && (
                       <>
-                        <Typography variant="subtitle2" gutterBottom>
-                          Detailed Breakdown:
-                        </Typography>
-                        {estimate.breakdown.map((item, index) => (
-                          <Box key={index} sx={{ mb: 1, pl: 2 }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <Typography variant="caption">
-                                {item.item} ({item.quantity} {item.unit})
-                              </Typography>
-                              <Typography variant="caption">
-                                {formatCurrency(item.totalCost)}
-                              </Typography>
-                            </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Base Price</Typography>
+                            <Typography variant="body2">
+                              {formatCurrency(prediction.breakdown.basePrice)}
+                            </Typography>
                           </Box>
-                        ))}
+                        </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Area Value</Typography>
+                            <Typography variant="body2">
+                              {formatCurrency(prediction.breakdown.areaContribution)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Location Premium</Typography>
+                            <Typography variant="body2">
+                              {formatCurrency(prediction.breakdown.locationPremium)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Condition Adjustment</Typography>
+                            <Typography variant="body2">
+                              {formatCurrency(prediction.breakdown.conditionAdjustment)}
+                            </Typography>
+                          </Box>
+                        </Box>
                       </>
                     )}
                   </CardContent>
                 </Card>
 
                 <Alert severity="info" sx={{ mt: 2 }}>
-                  Cost estimate saved to project. Version {estimate.version}
-                  {estimate.isActive && ' (Active)'}
+                  Confidence: {(prediction.confidence * 100).toFixed(0)}%
                 </Alert>
               </>
             ) : (
@@ -439,7 +475,7 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
               >
                 <TrendIcon sx={{ fontSize: 100, mb: 2, opacity: 0.3 }} />
                 <Typography variant="h6">
-                  Enter property details to calculate cost
+                  Enter details to predict market price
                 </Typography>
               </Box>
             )}

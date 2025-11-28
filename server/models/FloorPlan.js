@@ -1,16 +1,5 @@
 const mongoose = require('mongoose');
 
-const pointSchema = new mongoose.Schema({
-  x_ft: {
-    type: Number,
-    required: true
-  },
-  y_ft: {
-    type: Number,
-    required: true
-  }
-}, { _id: false });
-
 const floorPlanSchema = new mongoose.Schema({
   // Optional link to parent project
   project: {
@@ -33,72 +22,29 @@ const floorPlanSchema = new mongoose.Schema({
     maxlength: 200
   },
   
-  // Map metadata
-  mapInfo: {
-    title: String,
-    author: String,
-    date: String,
-    scale: String,
-    north_direction: {
-      type: String,
-      default: 'up'
-    }
-  },
+  // Map metadata - use Mixed for flexibility
+  mapInfo: mongoose.Schema.Types.Mixed,
   
-  // Plot summary with dimensions and setbacks
-  plotSummary: {
-    plot_width_ft: Number,
-    plot_length_ft: Number,
-    setback_front_ft: Number,
-    setback_rear_ft: Number,
-    setback_side_left_ft: Number,
-    setback_side_right_ft: Number
-  },
+  // Plot summary - use Mixed for flexibility
+  plotSummary: mongoose.Schema.Types.Mixed,
   
-  // Rooms with polygons
-  rooms: [{
-    name: String,
-    type: String,
-    polygon: [pointSchema],
-    color: String
-  }],
+  // Rooms - use Mixed for flexibility with AI-generated data
+  rooms: [mongoose.Schema.Types.Mixed],
   
-  // Walls
-  walls: [{
-    start: pointSchema,
-    end: pointSchema,
-    thickness_ft: Number
-  }],
+  // Walls - use Mixed for flexibility
+  walls: [mongoose.Schema.Types.Mixed],
   
-  // Doors
-  doors: [{
-    position: pointSchema,
-    width_ft: Number,
-    swing: {
-      type: String,
-      enum: ['inward', 'outward', 'left', 'right']
-    }
-  }],
+  // Doors - use Mixed for flexibility
+  doors: [mongoose.Schema.Types.Mixed],
   
-  // Windows
-  windows: [{
-    position: pointSchema,
-    width_ft: Number
-  }],
+  // Windows - use Mixed for flexibility
+  windows: [mongoose.Schema.Types.Mixed],
   
   // Stairs (optional)
-  stairs: [{
-    footprint: [pointSchema],
-    direction: String,
-    steps: Number
-  }],
+  stairs: [mongoose.Schema.Types.Mixed],
   
   // Fixtures (optional)
-  fixtures: [{
-    position: pointSchema,
-    type: String,
-    rotation: Number
-  }],
+  fixtures: [mongoose.Schema.Types.Mixed],
   
   // Generation metadata
   generatedBy: {
@@ -107,9 +53,7 @@ const floorPlanSchema = new mongoose.Schema({
     default: 'manual'
   },
   
-  generationInputs: {
-    type: mongoose.Schema.Types.Mixed
-  },
+  generationInputs: mongoose.Schema.Types.Mixed,
   
   // Active status (for version management)
   isActive: {
@@ -131,7 +75,8 @@ const floorPlanSchema = new mongoose.Schema({
     ref: 'User'
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  strict: false  // Allow fields not defined in schema
 });
 
 // Compound indexes for efficient queries

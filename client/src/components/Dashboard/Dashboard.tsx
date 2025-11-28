@@ -320,7 +320,7 @@ const FloorPlansGrid: React.FC<FloorPlansGridProps> = ({ floorPlans, onView, for
             Created: {formatDate(plan.createdAt)}
           </Typography>
           <Typography variant="body2" sx={{ mt: 1 }}>
-            {plan.plot_summary.plot_width_ft}×{plan.plot_summary.plot_length_ft} ft
+            {((plan as any).plot_summary || (plan as any).plotSummary)?.plot_width_ft || 0}×{((plan as any).plot_summary || (plan as any).plotSummary)?.plot_length_ft || 0} ft
           </Typography>
         </CardContent>
         <CardActions>

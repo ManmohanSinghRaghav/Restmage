@@ -6,7 +6,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const socketIo = require('socket.io');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
@@ -14,8 +15,7 @@ const costRoutes = require('./routes/cost');
 const exportRoutes = require('./routes/export');
 const pricePredictionRoutes = require('./routes/price-prediction');
 const chatbotRoutes = require('./routes/chatbot');
-// New RESTful routes for 3-dataset architecture
-const floorplansRoutes = require('./routes/floorplans');
+const floorplanRoutes = require('./routes/floorplan');
 const costEstimatesRoutes = require('./routes/cost-estimates');
 
 const PORT = process.env.PORT || 5000;
@@ -57,19 +57,28 @@ const apiRateLimiter = rateLimit({
   max: RATE_LIMIT_MAX_REQUESTS
 });
 
-app.use(helmet());
-app.use(apiRateLimiter);
-// CORS: allow configured origins and any localhost:* during development
+// CORS must be applied BEFORE helmet and other middleware
+// to properly handle preflight OPTIONS requests
 app.use(cors({
   origin: (origin, callback) => {
     if (ALLOW_ALL_ORIGINS) return callback(null, true);
     if (!origin) return callback(null, true);
-      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
 }));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
+app.use(apiRateLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -93,9 +102,21 @@ app.use('/api/cost', costRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/price-prediction', pricePredictionRoutes);
 app.use('/api/chatbot', chatbotRoutes);
-// New RESTful routes
-app.use('/api/floorplans', floorplansRoutes);
+app.use('/api/floorplan', floorplanRoutes);
 app.use('/api/cost-estimates', costEstimatesRoutes);
+
+// Serve static assets in production
+if (process.env.NODE_ENV === 'production') {
+  // Set static folder
+  app.use(express.static(path.join(__dirname, '../client/build')));
+
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.resolve(__dirname, '../client', 'build', 'index.html'));
+  });
+}
 
 app.get('/api/health', (req, res) => {
   res.json({ 

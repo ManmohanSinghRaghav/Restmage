@@ -4,6 +4,8 @@
  */
 
 const fetch = require('node-fetch');
+const fs = require('fs');
+const path = require('path');
 const { GEMINI_CONFIG, DEFAULT_FLOOR_PLAN_INPUTS } = require('../config/gemini.config');
 const { FloorPlanSchema } = require('../schemas/floorPlan.schema');
 const { createArchitectPrompt } = require('../utils/promptBuilder');
@@ -106,6 +108,16 @@ async function generateFloorPlan(inputs) {
     console.log('Calling Gemini API for floor plan generation...');
     const responseData = await callGeminiApi(url, requestBody);
     
+    // Log raw response for debugging
+    try {
+      fs.writeFileSync(
+        path.join(__dirname, '../gemini-response.json'), 
+        JSON.stringify(responseData, null, 2)
+      );
+    } catch (err) {
+      console.error('Failed to write debug log:', err);
+    }
+
     // Parse response
     console.log('Gemini API response received successfully');
     const jsonString = extractJsonFromResponse(responseData);

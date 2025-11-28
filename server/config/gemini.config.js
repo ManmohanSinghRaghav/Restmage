@@ -3,15 +3,20 @@
  * Centralized configuration for Gemini API integration
  */
 
+console.log('Gemini Model Configured:', process.env.GEMINI_API_MODEL || 'gemini-1.5-flash');
+
 const GEMINI_CONFIG = {
   API_BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',
-  MODEL: 'gemini-1.5-flash-latest',
+  MODEL: process.env.GEMINI_API_MODEL || 'gemini-1.5-flash',
   GENERATION_CONFIG: {
     temperature: 0.7,
     topK: 40,
     topP: 0.95,
-    maxOutputTokens: 8192,
+    maxOutputTokens: 65536,
     responseMimeType: 'application/json',
+    thinkingConfig: {
+      thinkingBudget: 8192
+    }
   },
 };
 
