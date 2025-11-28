@@ -109,30 +109,40 @@ app.use('/api/cost-estimates', costEstimatesRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
-  // Set static folder with explicit options
-  app.use(express.static(path.join(__dirname, '../client/build'), {
-    maxAge: '1d',
-    etag: true,
-    lastModified: true,
-    setHeaders: (res, filePath) => {
-      // Ensure `manifest.json` is publicly accessible and not aggressively cached
-      if (filePath.endsWith('manifest.json')) {
-        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-      }
-    }
-  }));
+  const fs = require('fs');
+  const clientBuildPath = path.join(__dirname, '../client/build');
 
-  // Catch-all route for client-side routing. Leave static files and API routes alone.
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) {
-      return next();
-    }
-    // If request looks like a static asset (has an extension), let express.static or Vercel handle it
-    if (/\.[a-z0-9]+$/i.test(req.path)) {
-      return next();
-    }
-    res.sendFile(path.resolve(__dirname, '../client', 'build', 'index.html'));
-  });
+  if (fs.existsSync(clientBuildPath)) {
+    // Set static folder with explicit options
+    app.use(express.static(clientBuildPath, {
+      maxAge: '1d',
+      etag: true,
+      lastModified: true,
+      setHeaders: (res, filePath) => {
+        // Ensure `manifest.json` is publicly accessible and not aggressively cached
+        if (filePath.endsWith('manifest.json')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      }
+    }));
+
+    // Catch-all route for client-side routing. Leave static files and API routes alone.
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      // If request looks like a static asset (has an extension), let express.static or Vercel handle it
+      if (/\.[a-z0-9]+$/i.test(req.path)) {
+        return next();
+      }
+      res.sendFile(path.resolve(clientBuildPath, 'index.html'));
+    });
+  } else {
+    console.log('Client build not found. Serving API only.');
+    app.get('/', (req, res) => {
+      res.send('API is running. Frontend is hosted separately.');
+    });
+  }
 }
 
 app.get('/api/health', (req, res) => {
