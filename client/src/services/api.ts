@@ -1,12 +1,5 @@
-import axios from 'axios';
-  USER: 'user'
-};
-const UNAUTHORIZED_STATUS = 401;
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
+headers: {
+  'Content-Type': 'application/json',
   },
 });
 
@@ -20,7 +13,7 @@ const computeAltBaseUrls = (): string[] => {
     const port = process.env.REACT_APP_API_PORT || '5000';
     const currentHostUrl = `${protocol}//${host}:${port}/api`;
     if (currentHostUrl !== API_BASE_URL) list.push(currentHostUrl);
-  } catch {}
+  } catch { }
   // Common local fallbacks
   if ('http://localhost:5000/api' !== API_BASE_URL) list.push('http://localhost:5000/api');
   if ('http://127.0.0.1:5000/api' !== API_BASE_URL) list.push('http://127.0.0.1:5000/api');
