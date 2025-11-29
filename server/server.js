@@ -45,7 +45,6 @@ const io = socketIo(server, {
       // Allow server-to-server and tools with no origin
       if (!origin) return callback(null, true);
       if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
-      if (/\.vercel\.app$/.test(origin)) return callback(null, true);
       if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
       return callback(new Error('Not allowed by CORS'));
     },
@@ -65,7 +64,6 @@ app.use(cors({
     if (ALLOW_ALL_ORIGINS) return callback(null, true);
     if (!origin) return callback(null, true);
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
-    if (/\.vercel\.app$/.test(origin)) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     return callback(new Error('Not allowed by CORS'));
   },
@@ -109,46 +107,21 @@ app.use('/api/cost-estimates', costEstimatesRoutes);
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {
-  const fs = require('fs');
-  const clientBuildPath = path.join(__dirname, '../client/build');
+  // Set static folder
+  app.use(express.static(path.join(__dirname, '../client/build')));
 
-  if (fs.existsSync(clientBuildPath)) {
-    // Set static folder with explicit options
-    app.use(express.static(clientBuildPath, {
-      maxAge: '1d',
-      etag: true,
-      lastModified: true,
-      setHeaders: (res, filePath) => {
-        // Ensure `manifest.json` is publicly accessible and not aggressively cached
-        if (filePath.endsWith('manifest.json')) {
-          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-        }
-      }
-    }));
-
-    // Catch-all route for client-side routing. Leave static files and API routes alone.
-    app.get('*', (req, res, next) => {
-      if (req.path.startsWith('/api')) {
-        return next();
-      }
-      // If request looks like a static asset (has an extension), let express.static or Vercel handle it
-      if (/\.[a-z0-9]+$/i.test(req.path)) {
-        return next();
-      }
-      res.sendFile(path.resolve(clientBuildPath, 'index.html'));
-    });
-  } else {
-    console.log('Client build not found. Serving API only.');
-    app.get('/', (req, res) => {
-      res.send('API is running. Frontend is hosted separately.');
-    });
-  }
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.resolve(__dirname, '../client', 'build', 'index.html'));
+  });
 }
 
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString()
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString() 
   });
 });
 
@@ -179,7 +152,7 @@ setupWebSocketHandlers(io);
 
 const handleServerError = (err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({
+  res.status(500).json({ 
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'production' ? {} : err.stack
   });
@@ -196,9 +169,9 @@ const startServer = async () => {
   try {
     await mongoose.connect(MONGODB_URI);
     console.log('Connected to MongoDB with Mongoose');
-
+    
     await verifyMongoDeployment(MONGODB_URI);
-
+    
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`API available at http://localhost:${PORT}/api`);

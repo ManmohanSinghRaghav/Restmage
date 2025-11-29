@@ -1,5 +1,37 @@
-headers: {
-  'Content-Type': 'application/json',
+import axios from 'axios';
+import { User, Project, LoginCredentials, RegisterData, CostEstimate } from '../types';
+import { FloorPlan, FloorPlanInputs } from '../types/floorPlan.types';
+
+// Build a smart default API base URL so the app works on localhost and LAN IPs
+// without additional configuration. You can still override it with
+// REACT_APP_API_URL or REACT_APP_API_PORT.
+const getDefaultApiBaseUrl = (): string => {
+  try {
+    const win: any = (typeof window !== 'undefined') ? window : undefined;
+    const protocol = win?.location?.protocol || 'http:';
+    // Normalize 127.0.0.1 to localhost to avoid CORS issues
+    let hostname = win?.location?.hostname || 'localhost';
+    if (hostname === '127.0.0.1') {
+      hostname = 'localhost';
+    }
+    const port = process.env.REACT_APP_API_PORT || '5000';
+    return `${protocol}//${hostname}:${port}/api`;
+  } catch {
+    return 'http://localhost:5000/api';
+  }
+};
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || getDefaultApiBaseUrl();
+const STORAGE_KEYS = {
+  TOKEN: 'token',
+  USER: 'user'
+};
+const UNAUTHORIZED_STATUS = 401;
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
   },
 });
 
@@ -13,7 +45,7 @@ const computeAltBaseUrls = (): string[] => {
     const port = process.env.REACT_APP_API_PORT || '5000';
     const currentHostUrl = `${protocol}//${host}:${port}/api`;
     if (currentHostUrl !== API_BASE_URL) list.push(currentHostUrl);
-  } catch { }
+  } catch {}
   // Common local fallbacks
   if ('http://localhost:5000/api' !== API_BASE_URL) list.push('http://localhost:5000/api');
   if ('http://127.0.0.1:5000/api' !== API_BASE_URL) list.push('http://127.0.0.1:5000/api');

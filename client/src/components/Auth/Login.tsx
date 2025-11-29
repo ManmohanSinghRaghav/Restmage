@@ -27,8 +27,24 @@ const Login: React.FC = () => {
     setError('');
     setLoading(true);
 
+    // Trim inputs to avoid whitespace-only values
+    const identifier = email.trim();
+    const pwd = password; // do not forcibly trim password characters, but you may trim leading/trailing
+
+    if (!identifier) {
+      setError('Please enter your email or username');
+      setLoading(false);
+      return;
+    }
+
+    if (!pwd || pwd.length === 0) {
+      setError('Please enter your password');
+      setLoading(false);
+      return;
+    }
+
     try {
-      await login({ email, password });
+      await login({ email: identifier, password: pwd });
       showNotification('Login successful!', 'success');
       navigate('/dashboard');
     } catch (err: any) {
@@ -93,7 +109,7 @@ const Login: React.FC = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
+              disabled={loading || email.trim().length === 0 || password.length === 0}
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </Button>

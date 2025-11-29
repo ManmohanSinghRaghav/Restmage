@@ -12,6 +12,7 @@ import {
 import {
   Dashboard as DashboardIcon,
   Add as AddIcon,
+  Home as FloorPlanIcon,
   AttachMoney as PriceIcon,
   Chat as ChatIcon,
   Edit as EditorIcon,
@@ -33,6 +34,11 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       text: 'Dashboard',
       icon: <DashboardIcon />,
       path: '/dashboard',
+    },
+    {
+      text: 'Floor Plan Generator',
+      icon: <FloorPlanIcon />,
+      path: '/floorplan',
     },
     {
       text: 'Floor Plan Editor',

@@ -16,15 +16,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      const getSocketUrl = () => {
-        if (process.env.REACT_APP_SOCKET_URL) return process.env.REACT_APP_SOCKET_URL;
-        if (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')) {
-          return 'https://restmage-backend.onrender.com';
-        }
-        return 'http://localhost:5000';
-      };
-
-      const newSocket = io(getSocketUrl(), {
+      const newSocket = io(process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000', {
         auth: {
           token: localStorage.getItem('token'),
           userId: user._id,

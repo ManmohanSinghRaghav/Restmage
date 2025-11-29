@@ -95,8 +95,8 @@ router.post('/register', [
 // Login now supports either email or username in the same field for better UX.
 // The client currently sends this value under the "email" key.
 router.post('/login', [
-  body('email').notEmpty().withMessage('Email or username is required'),
-  body('password').notEmpty().withMessage('Password is required')
+  body('email').trim().notEmpty().withMessage('Email or username is required'),
+  body('password').trim().notEmpty().withMessage('Password is required')
 ], async (req, res) => {
   try {
     if (!validateRequest(req, res)) return;
@@ -105,6 +105,7 @@ router.post('/login', [
 
     // Determine whether the identifier looks like an email or a username
     const isEmail = typeof identifier === 'string' && identifier.includes('@');
+    // If an email is provided, compare using lowercase; usernames are used as-is
     const query = isEmail
       ? { email: identifier.toLowerCase() }
       : { username: identifier };
