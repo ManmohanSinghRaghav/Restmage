@@ -111,17 +111,36 @@ app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/floorplan', floorplanRoutes);
 app.use('/api/cost-estimates', costEstimatesRoutes);
 
-// Serve static assets in production
+// Serve static assets in production (only if client build exists)
 if (process.env.NODE_ENV === 'production') {
-  // Set static folder
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  const fs = require('fs');
+  const clientBuildPath = path.join(__dirname, '../client/build');
+  const indexPath = path.join(clientBuildPath, 'index.html');
+  
+  // Only serve static files if the client build directory exists
+  if (fs.existsSync(clientBuildPath) && fs.existsSync(indexPath)) {
+    console.log('Serving static files from client build');
+    app.use(express.static(clientBuildPath));
 
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) {
-      return next();
-    }
-    res.sendFile(path.resolve(__dirname, '../client', 'build', 'index.html'));
-  });
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      res.sendFile(indexPath);
+    });
+  } else {
+    console.log('Client build not found - running as API-only server');
+    // Redirect root to API health check or return info
+    app.get('/', (req, res) => {
+      res.json({
+        message: 'Restmage API Server',
+        status: 'running',
+        api: '/api',
+        health: '/api/health',
+        docs: 'API endpoints are available under /api/*'
+      });
+    });
+  }
 }
 
 app.get('/api/health', (req, res) => {
