@@ -73,6 +73,7 @@ export interface Project {
   };
   activeFloorPlan?: any; // Will be populated with FloorPlan
   activeCostEstimate?: CostEstimate;
+  activePricePrediction?: any; // Will be populated with PricePrediction
   // Optional current cost estimation (components reference `costEstimation`)
   costEstimation?: CostEstimate | null;
   // Map data used by editors and map components

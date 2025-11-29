@@ -112,8 +112,12 @@ def main():
         else:
             predicted = float(pred)
 
+        # Convert USD to INR (approx 84)
+        # The model is trained on USD data, so we convert the output
+        predicted_inr = predicted * 84
+
         output = {
-            'predicted_price': predicted,
+            'predicted_price': predicted_inr,
             'currency': 'INR',
             'symbol': '\u20B9'
         }

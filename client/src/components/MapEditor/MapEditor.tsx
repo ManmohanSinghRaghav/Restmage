@@ -118,16 +118,17 @@ const MapEditor: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [currentFloorPlanId, setCurrentFloorPlanId] = useState<string | null>(floorPlanId || null);
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null);
 
   // Load floor plan data
   useEffect(() => {
     const loadData = async () => {
       if (!projectId && !floorPlanId) return;
-      
+
       setLoading(true);
       try {
         let floorPlan: FloorPlan | null = null;
-        
+
         if (floorPlanId) {
           floorPlan = await floorPlansAPI.get(floorPlanId);
         } else if (projectId) {
@@ -139,15 +140,16 @@ const MapEditor: React.FC = () => {
             floorPlan = plans[0];
           }
         }
-        
+
         if (floorPlan) {
           setCurrentFloorPlanId(floorPlan._id || null);
-          
+          setLoadedProjectId((floorPlan as any).project || null);
+
           // Map API response to editor state (handle both camelCase from DB and snake_case from AI)
           const fp = floorPlan as any;
           const mapInfoData = fp.map_info || fp.mapInfo || {};
           const plotSummaryData = fp.plot_summary || fp.plotSummary || {};
-          
+
           setState(prev => ({
             ...prev,
             mapInfo: {
@@ -187,7 +189,7 @@ const MapEditor: React.FC = () => {
               id: f.id || `fixture-${Date.now()}-${i}`
             })),
           }));
-          
+
           showNotification('Floor plan loaded successfully', 'success');
         }
       } catch (error) {
@@ -198,7 +200,7 @@ const MapEditor: React.FC = () => {
         setLoading(false);
       }
     };
-    
+
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, floorPlanId]);
@@ -366,7 +368,7 @@ const MapEditor: React.FC = () => {
     const centerX = room.polygon.reduce((sum, p) => sum + p.x_ft, 0) / room.polygon.length;
     const centerY = room.polygon.reduce((sum, p) => sum + p.y_ft, 0) / room.polygon.length;
     const center = feetToScreen(centerX, centerY);
-    
+
     ctx.fillStyle = '#333';
     ctx.font = `${12 * state.zoom}px Arial`;
     ctx.textAlign = 'center';
@@ -397,7 +399,7 @@ const MapEditor: React.FC = () => {
 
     ctx.fillStyle = selected ? '#e74c3c' : '#9b59b6';
     ctx.fillRect(pos.x - width / 2, pos.y - 5, width, 10);
-    
+
     ctx.strokeStyle = '#6c3483';
     ctx.lineWidth = 2;
     ctx.strokeRect(pos.x - width / 2, pos.y - 5, width, 10);
@@ -411,7 +413,7 @@ const MapEditor: React.FC = () => {
 
     ctx.fillStyle = selected ? '#e74c3c' : '#2196F3';
     ctx.fillRect(pos.x - width / 2, pos.y - 5, width, 10);
-    
+
     ctx.strokeStyle = '#1565C0';
     ctx.lineWidth = 2;
     ctx.strokeRect(pos.x - width / 2, pos.y - 5, width, 10);
@@ -432,7 +434,7 @@ const MapEditor: React.FC = () => {
     ctx.rotate((fixture.rotation * Math.PI) / 180);
     ctx.fillRect(-size / 2, -size / 2, size, size);
     ctx.strokeRect(-size / 2, -size / 2, size, size);
-    
+
     ctx.fillStyle = 'white';
     ctx.font = `${10 * state.zoom}px Arial`;
     ctx.textAlign = 'center';
@@ -532,7 +534,7 @@ const MapEditor: React.FC = () => {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const point = screenToFeet(x, y);
-    
+
     setCanvasCoords(`${point.x_ft.toFixed(1)}, ${point.y_ft.toFixed(1)} ft`);
   };
 
@@ -555,7 +557,7 @@ const MapEditor: React.FC = () => {
     reader.onload = (event) => {
       try {
         const imported = JSON.parse(event.target?.result as string);
-        
+
         if (imported.map_info || imported.plot_summary) {
           // Convert Gemini AI format
           const converted: Partial<EditorState> = {
@@ -578,14 +580,14 @@ const MapEditor: React.FC = () => {
             })),
             fixtures: [],
           };
-          
+
           setState(prev => ({ ...prev, ...converted }));
           showNotification(`Floor plan imported: ${imported.map_info?.title || 'Untitled'}`, 'success');
         } else {
           setState(imported);
           showNotification('Floor plan imported successfully', 'success');
         }
-        
+
         saveToHistory();
       } catch (error) {
         console.error('Import error:', error);
@@ -685,7 +687,7 @@ const MapEditor: React.FC = () => {
       ...prev,
       [arrayKey]: (prev[arrayKey] as any[]).filter((item: any) => item.id !== selectedElement.id),
     }));
-    
+
     setSelectedElement(null);
     setSelectedType(null);
     saveToHistory();
@@ -745,7 +747,7 @@ const MapEditor: React.FC = () => {
     if (!ctx) return;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
     drawGrid(ctx);
     drawPlotBoundary(ctx);
 
@@ -816,8 +818,9 @@ const MapEditor: React.FC = () => {
   const coverage = plotArea > 0 ? ((totalBuiltUpArea / plotArea) * 100).toFixed(1) : '0';
 
   const handleSave = async (navigateToNext = false) => {
+    // We need either a project ID (new plan) or a floor plan ID (existing plan)
     if (!projectId && !currentFloorPlanId) {
-      showNotification('Cannot save: No project ID', 'error');
+      showNotification('Cannot save: No project context', 'error');
       return;
     }
 
@@ -828,23 +831,23 @@ const MapEditor: React.FC = () => {
         map_info: state.mapInfo,
         plot_summary: state.plotSummary,
         rooms: state.rooms.map(r => ({
-            name: r.name,
-            type: r.type,
-            polygon: r.polygon
+          name: r.name,
+          type: r.type,
+          polygon: r.polygon
         })),
         walls: state.walls.map(w => ({
-            start: w.start,
-            end: w.end,
-            thickness_ft: 0.5 // Default thickness
+          start: w.start,
+          end: w.end,
+          thickness_ft: 0.5 // Default thickness
         })),
         doors: state.doors.map(d => ({
-            position: d.position,
-            width_ft: d.width,
-            swing: 'left' // Default swing
+          position: d.position,
+          width_ft: d.width,
+          swing: 'left' // Default swing
         })),
         windows: state.windows.map(w => ({
-            position: w.position,
-            width_ft: w.width
+          position: w.position,
+          width_ft: w.width
         })),
         fixtures: state.fixtures,
       };
@@ -858,13 +861,17 @@ const MapEditor: React.FC = () => {
       }
 
       showNotification('Floor plan saved successfully', 'success');
-      
+
       if (navigateToNext) {
-        if (projectId) {
+        // Use the project ID from params or the one from the saved/loaded plan
+        const targetProjectId = projectId || (savedPlan as any)?.project || loadedProjectId;
+
+        if (targetProjectId) {
           const fpId = savedPlan?._id || currentFloorPlanId;
-          navigate(`/price-prediction/${projectId}${fpId ? `/${fpId}` : ''}`);
+          navigate(`/price-prediction/${targetProjectId}${fpId ? `/${fpId}` : ''}`);
         } else {
-          showNotification('No project ID for navigation', 'warning');
+          console.error('Navigation failed: No project ID found', { projectId, savedPlan, currentFloorPlanId });
+          showNotification('Project ID missing - cannot navigate to next step', 'warning');
         }
       }
     } catch (error) {
@@ -893,7 +900,7 @@ const MapEditor: React.FC = () => {
             Floor Plan Editor
             <Typography variant="caption" sx={{ bgcolor: 'action.selected', px: 1, borderRadius: 1 }}>v2.0</Typography>
           </Typography>
-          
+
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Tooltip title="Undo (Ctrl+Z)">
               <span>
@@ -909,28 +916,28 @@ const MapEditor: React.FC = () => {
                 </IconButton>
               </span>
             </Tooltip>
-            
+
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-            
-            <Button 
-              startIcon={<Upload />} 
+
+            <Button
+              startIcon={<Upload />}
               onClick={() => fileInputRef.current?.click()}
               size="small"
             >
               Import
             </Button>
-            <Button 
-              startIcon={<Download />} 
+            <Button
+              startIcon={<Download />}
               onClick={handleExport}
               size="small"
             >
               Export
             </Button>
-            
+
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
 
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               color="primary"
               startIcon={<Save />}
               onClick={() => handleSave(false)}
@@ -941,8 +948,8 @@ const MapEditor: React.FC = () => {
               {saving ? 'Saving...' : 'Save'}
             </Button>
 
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               color="secondary"
               endIcon={<ArrowForward />}
               onClick={() => handleSave(true)}
@@ -951,11 +958,11 @@ const MapEditor: React.FC = () => {
             >
               Next: Price
             </Button>
-            
+
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-            
-            <Button 
-              variant="contained" 
+
+            <Button
+              variant="contained"
               color="success"
               startIcon={<AutoAwesome />}
               onClick={() => setShowGeneratorDialog(true)}
@@ -972,8 +979,8 @@ const MapEditor: React.FC = () => {
       <Paper square elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', px: 2, py: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Tooltip title="Select (V)">
-            <Button 
-              variant={activeTool === 'select' ? 'contained' : 'outlined'} 
+            <Button
+              variant={activeTool === 'select' ? 'contained' : 'outlined'}
               onClick={() => setActiveTool('select')}
               size="small"
               startIcon={<Check />}
@@ -982,8 +989,8 @@ const MapEditor: React.FC = () => {
             </Button>
           </Tooltip>
           <Tooltip title="Draw Room (R)">
-            <Button 
-              variant={activeTool === 'room' ? 'contained' : 'outlined'} 
+            <Button
+              variant={activeTool === 'room' ? 'contained' : 'outlined'}
               onClick={() => setActiveTool('room')}
               size="small"
               startIcon={<CropSquare />}
@@ -992,8 +999,8 @@ const MapEditor: React.FC = () => {
             </Button>
           </Tooltip>
           <Tooltip title="Draw Wall (W)">
-            <Button 
-              variant={activeTool === 'wall' ? 'contained' : 'outlined'} 
+            <Button
+              variant={activeTool === 'wall' ? 'contained' : 'outlined'}
               onClick={() => setActiveTool('wall')}
               size="small"
               startIcon={<Timeline />}
@@ -1002,8 +1009,8 @@ const MapEditor: React.FC = () => {
             </Button>
           </Tooltip>
           <Tooltip title="Add Door (D)">
-            <Button 
-              variant={activeTool === 'door' ? 'contained' : 'outlined'} 
+            <Button
+              variant={activeTool === 'door' ? 'contained' : 'outlined'}
               onClick={() => setActiveTool('door')}
               size="small"
               startIcon={<DoorFront />}
@@ -1012,8 +1019,8 @@ const MapEditor: React.FC = () => {
             </Button>
           </Tooltip>
           <Tooltip title="Add Window (N)">
-            <Button 
-              variant={activeTool === 'window' ? 'contained' : 'outlined'} 
+            <Button
+              variant={activeTool === 'window' ? 'contained' : 'outlined'}
               onClick={() => setActiveTool('window')}
               size="small"
               startIcon={<WindowIcon />}
@@ -1022,8 +1029,8 @@ const MapEditor: React.FC = () => {
             </Button>
           </Tooltip>
           <Tooltip title="Add Fixture (F)">
-            <Button 
-              variant={activeTool === 'fixture' ? 'contained' : 'outlined'} 
+            <Button
+              variant={activeTool === 'fixture' ? 'contained' : 'outlined'}
               onClick={() => setActiveTool('fixture')}
               size="small"
               startIcon={<Chair />}
@@ -1048,8 +1055,8 @@ const MapEditor: React.FC = () => {
       {/* Main Content */}
       <Box sx={{ display: 'flex', flexGrow: 1, overflow: 'hidden' }}>
         <Box sx={{ flexGrow: 1, position: 'relative', bgcolor: '#f0f0f0' }}>
-          <canvas 
-            ref={canvasRef} 
+          <canvas
+            ref={canvasRef}
             style={{ width: '100%', height: '100%', display: 'block', cursor: activeTool === 'select' ? 'default' : 'crosshair' }}
             onClick={handleCanvasClick}
             onMouseMove={handleCanvasMouseMove}
@@ -1067,39 +1074,39 @@ const MapEditor: React.FC = () => {
             <Typography variant="subtitle2" gutterBottom>Map Information</Typography>
             <Grid container spacing={2}>
               <Grid size={12}>
-                <TextField 
-                  label="Title" 
-                  fullWidth 
-                  size="small" 
+                <TextField
+                  label="Title"
+                  fullWidth
+                  size="small"
                   value={state.mapInfo.title}
                   onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, title: e.target.value } }))}
                 />
               </Grid>
               <Grid size={12}>
-                <TextField 
-                  label="Author" 
-                  fullWidth 
-                  size="small" 
+                <TextField
+                  label="Author"
+                  fullWidth
+                  size="small"
                   value={state.mapInfo.author}
                   onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, author: e.target.value } }))}
                 />
               </Grid>
               <Grid size={6}>
-                <TextField 
-                  label="Date" 
-                  type="date" 
-                  fullWidth 
-                  size="small" 
+                <TextField
+                  label="Date"
+                  type="date"
+                  fullWidth
+                  size="small"
                   InputLabelProps={{ shrink: true }}
                   value={state.mapInfo.date}
                   onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, date: e.target.value } }))}
                 />
               </Grid>
               <Grid size={6}>
-                <TextField 
-                  label="Scale" 
-                  fullWidth 
-                  size="small" 
+                <TextField
+                  label="Scale"
+                  fullWidth
+                  size="small"
                   value={state.mapInfo.scale}
                   onChange={(e) => setState(prev => ({ ...prev, mapInfo: { ...prev.mapInfo, scale: e.target.value } }))}
                 />
@@ -1112,21 +1119,21 @@ const MapEditor: React.FC = () => {
             <Typography variant="subtitle2" gutterBottom>Plot Settings</Typography>
             <Grid container spacing={2}>
               <Grid size={6}>
-                <TextField 
-                  label="Length (ft)" 
-                  type="number" 
-                  fullWidth 
-                  size="small" 
+                <TextField
+                  label="Length (ft)"
+                  type="number"
+                  fullWidth
+                  size="small"
                   value={state.plotSummary.plot_length_ft}
                   onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, plot_length_ft: parseFloat(e.target.value) } }))}
                 />
               </Grid>
               <Grid size={6}>
-                <TextField 
-                  label="Width (ft)" 
-                  type="number" 
-                  fullWidth 
-                  size="small" 
+                <TextField
+                  label="Width (ft)"
+                  type="number"
+                  fullWidth
+                  size="small"
                   value={state.plotSummary.plot_width_ft}
                   onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, plot_width_ft: parseFloat(e.target.value) } }))}
                 />
@@ -1135,37 +1142,37 @@ const MapEditor: React.FC = () => {
                 <Typography variant="caption" color="textSecondary">Setbacks (ft)</Typography>
                 <Grid container spacing={1}>
                   <Grid size={3}>
-                    <TextField 
-                      label="Front" 
-                      type="number" 
-                      size="small" 
+                    <TextField
+                      label="Front"
+                      type="number"
+                      size="small"
                       value={state.plotSummary.setback_front_ft}
                       onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_front_ft: parseFloat(e.target.value) } }))}
                     />
                   </Grid>
                   <Grid size={3}>
-                    <TextField 
-                      label="Rear" 
-                      type="number" 
-                      size="small" 
+                    <TextField
+                      label="Rear"
+                      type="number"
+                      size="small"
                       value={state.plotSummary.setback_rear_ft}
                       onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_rear_ft: parseFloat(e.target.value) } }))}
                     />
                   </Grid>
                   <Grid size={3}>
-                    <TextField 
-                      label="Left" 
-                      type="number" 
-                      size="small" 
+                    <TextField
+                      label="Left"
+                      type="number"
+                      size="small"
                       value={state.plotSummary.setback_side_left_ft}
                       onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_side_left_ft: parseFloat(e.target.value) } }))}
                     />
                   </Grid>
                   <Grid size={3}>
-                    <TextField 
-                      label="Right" 
-                      type="number" 
-                      size="small" 
+                    <TextField
+                      label="Right"
+                      type="number"
+                      size="small"
                       value={state.plotSummary.setback_side_right_ft}
                       onChange={(e) => setState(prev => ({ ...prev, plotSummary: { ...prev.plotSummary, setback_side_right_ft: parseFloat(e.target.value) } }))}
                     />
@@ -1193,30 +1200,30 @@ const MapEditor: React.FC = () => {
                 <Typography variant="subtitle2">Properties</Typography>
                 <IconButton size="small" color="error" onClick={deleteSelectedElement}><Delete fontSize="small" /></IconButton>
               </Box>
-              
+
               {selectedType === 'room' && (
                 <Grid container spacing={2}>
                   <Grid size={12}>
-                    <TextField 
-                      label="Name" 
-                      fullWidth 
-                      size="small" 
+                    <TextField
+                      label="Name"
+                      fullWidth
+                      size="small"
                       value={selectedElement.name}
                       onChange={(e) => {
                         selectedElement.name = e.target.value;
-                        setState({...state});
+                        setState({ ...state });
                       }}
                     />
                   </Grid>
                   <Grid size={12}>
                     <FormControl fullWidth size="small">
                       <InputLabel>Type</InputLabel>
-                      <Select 
+                      <Select
                         value={selectedElement.type}
                         label="Type"
                         onChange={(e) => {
                           selectedElement.type = e.target.value;
-                          setState({...state});
+                          setState({ ...state });
                         }}
                       >
                         {ROOM_TYPES.map(type => (
@@ -1233,7 +1240,7 @@ const MapEditor: React.FC = () => {
               {selectedType === 'fixture' && activeTool === 'fixture' && (
                 <FormControl fullWidth size="small">
                   <InputLabel>Fixture Type</InputLabel>
-                  <Select 
+                  <Select
                     value={selectedFixtureType}
                     label="Fixture Type"
                     onChange={(e) => setSelectedFixtureType(e.target.value)}
@@ -1249,10 +1256,10 @@ const MapEditor: React.FC = () => {
 
           {/* Elements Panel */}
           <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
-            <Tabs 
-              value={activeTab} 
-              onChange={(_, v) => setActiveTab(v)} 
-              variant="fullWidth" 
+            <Tabs
+              value={activeTab}
+              onChange={(_, v) => setActiveTab(v)}
+              variant="fullWidth"
               indicatorColor="primary"
               textColor="primary"
               sx={{ borderBottom: 1, borderColor: 'divider' }}
@@ -1262,11 +1269,11 @@ const MapEditor: React.FC = () => {
               <Tab label="Openings" value="openings" />
               <Tab label="Fixtures" value="fixtures" />
             </Tabs>
-            
+
             <List dense sx={{ flexGrow: 1, overflowY: 'auto' }}>
               {activeTab === 'rooms' && state.rooms.map(room => (
                 <ListItem key={room.id} disablePadding>
-                  <ListItemButton 
+                  <ListItemButton
                     selected={selectedElement === room}
                     onClick={() => { setSelectedElement(room); setSelectedType('room'); }}
                   >
@@ -1275,10 +1282,10 @@ const MapEditor: React.FC = () => {
                   </ListItemButton>
                 </ListItem>
               ))}
-              
+
               {activeTab === 'walls' && state.walls.map(wall => (
                 <ListItem key={wall.id} disablePadding>
-                  <ListItemButton 
+                  <ListItemButton
                     selected={selectedElement === wall}
                     onClick={() => { setSelectedElement(wall); setSelectedType('wall'); }}
                   >
@@ -1290,7 +1297,7 @@ const MapEditor: React.FC = () => {
 
               {activeTab === 'openings' && [...state.doors, ...state.windows].map(item => (
                 <ListItem key={item.id} disablePadding>
-                  <ListItemButton 
+                  <ListItemButton
                     selected={selectedElement === item}
                     onClick={() => { setSelectedElement(item); setSelectedType('door' in item ? 'door' : 'window'); }}
                   >
@@ -1302,7 +1309,7 @@ const MapEditor: React.FC = () => {
 
               {activeTab === 'fixtures' && state.fixtures.map(fixture => (
                 <ListItem key={fixture.id} disablePadding>
-                  <ListItemButton 
+                  <ListItemButton
                     selected={selectedElement === fixture}
                     onClick={() => { setSelectedElement(fixture); setSelectedType('fixture'); }}
                   >
@@ -1311,7 +1318,7 @@ const MapEditor: React.FC = () => {
                   </ListItemButton>
                 </ListItem>
               ))}
-              
+
               {/* Empty states */}
               {activeTab === 'rooms' && state.rooms.length === 0 && <ListItem><ListItemText primary="No rooms yet" /></ListItem>}
               {activeTab === 'walls' && state.walls.length === 0 && <ListItem><ListItemText primary="No walls yet" /></ListItem>}

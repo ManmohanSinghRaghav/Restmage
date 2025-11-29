@@ -14,6 +14,7 @@ import {
   Send as SendIcon,
   SmartToy as BotIcon,
 } from '@mui/icons-material';
+import { chatbotAPI } from '../../services/api';
 
 interface Message {
   id: string;
@@ -33,6 +34,7 @@ const Chatbot: React.FC = () => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -53,43 +55,19 @@ const Chatbot: React.FC = () => {
       timestamp: new Date()
     };
 
-    setMessages([...messages, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     const currentInput = inputMessage;
     setInputMessage('');
     setLoading(true);
 
     try {
-      // Call OpenAI Chat Completions API
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.REACT_APP_OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a smart and friendly real estate assistant. You answer clearly, understand casual chat, and give helpful property/location, pricing, floor plan, and design suggestions with concise explanations.'
-            },
-            {
-              role: 'user',
-              content: currentInput
-            }
-          ],
-          temperature: 0.7
-        })
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('OpenAI API error:', response.status, errorText);
-        throw new Error('OpenAI API error');
+      const response = await chatbotAPI.sendMessage(currentInput, conversationId);
+      
+      if (response.conversationId && !conversationId) {
+        setConversationId(response.conversationId);
       }
 
-      const data = await response.json();
-      const botReply = data.choices?.[0]?.message?.content?.trim() || 'Hmm, I\'m thinking…';
+      const botReply = response.botResponse;
 
       const botMessage: Message = {
         id: `bot_${Date.now()}`,
@@ -100,10 +78,10 @@ const Chatbot: React.FC = () => {
 
       setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      console.error(error);
+      console.error('Chatbot error:', error);
       const errorMessage: Message = {
-        id: `error_${Date.now()}`,
-        text: 'I ran into an issue. Please try again.',
+        id: `err_${Date.now()}`,
+        text: "Sorry, I'm having trouble connecting to the server. Please try again later.",
         sender: 'bot',
         timestamp: new Date()
       };

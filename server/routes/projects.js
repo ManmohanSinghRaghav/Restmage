@@ -57,7 +57,8 @@ router.get('/:id', auth, validateObjectId(), async (req, res) => {
       .populate('owner', 'username email')
       .populate('collaborators.user', 'username email')
       .populate('activeFloorPlan')
-      .populate('activeCostEstimate');
+      .populate('activeCostEstimate')
+      .populate('activePricePrediction');
 
     if (!project) {
       return res.status(404).json({ message: 'Project not found' });
@@ -113,9 +114,9 @@ router.post('/', auth, [
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.error('Validation errors:', errors.array());
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Validation failed',
-        errors: errors.array() 
+        errors: errors.array()
       });
     }
 
@@ -150,7 +151,7 @@ router.post('/', auth, [
     });
   } catch (error) {
     console.error('❌ Create project error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error during project creation',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -183,8 +184,8 @@ router.put('/:id', auth, validateObjectId(), [
 
     // Check if user has edit access
     const isOwner = project.owner.toString() === req.user._id.toString();
-    const isEditor = project.collaborators.some(collab => 
-      collab.user.toString() === req.user._id.toString() && 
+    const isEditor = project.collaborators.some(collab =>
+      collab.user.toString() === req.user._id.toString() &&
       ['editor', 'admin'].includes(collab.role)
     );
 
@@ -224,8 +225,8 @@ router.put('/:id/map', auth, validateObjectId(), async (req, res) => {
 
     // Check if user has edit access
     const isOwner = project.owner.toString() === req.user._id.toString();
-    const isEditor = project.collaborators.some(collab => 
-      collab.user.toString() === req.user._id.toString() && 
+    const isEditor = project.collaborators.some(collab =>
+      collab.user.toString() === req.user._id.toString() &&
       ['editor', 'admin'].includes(collab.role)
     );
 
@@ -327,7 +328,7 @@ router.delete('/:id', auth, validateObjectId(), async (req, res) => {
     // Cascade delete related floor plans and cost estimates
     const FloorPlan = require('../models/FloorPlan');
     const CostEstimate = require('../models/CostEstimate');
-    
+
     await Promise.all([
       FloorPlan.deleteMany({ project: req.params.id }),
       CostEstimate.deleteMany({ project: req.params.id })

@@ -13,30 +13,31 @@ const router = express.Router();
  */
 
 // Training data coefficients (pre-calculated from typical real estate data)
+// Values converted to INR (approx 84 INR/USD)
 const PRICE_MODEL = {
-  basePrice: 50000, // Base price in USD
+  basePrice: 4200000, // Base price in INR (~50k USD)
   coefficients: {
-    areaPerSqFt: 100, // Price per square foot
-    bedrooms: 15000, // Additional price per bedroom
-    bathrooms: 10000, // Additional price per bathroom
-    age: -2000, // Price reduction per year of age
+    areaPerSqFt: 8400, // Price per square foot
+    bedrooms: 1260000, // Additional price per bedroom
+    bathrooms: 840000, // Additional price per bathroom
+    age: -168000, // Price reduction per year of age
     location: {
-      urban: 50000,
-      suburban: 30000,
-      rural: 10000
+      urban: 4200000,
+      suburban: 2520000,
+      rural: 840000
     },
     condition: {
-      excellent: 40000,
-      good: 20000,
+      excellent: 3360000,
+      good: 1680000,
       fair: 0,
-      poor: -20000
+      poor: -1680000
     },
     amenities: {
-      garage: 15000,
-      garden: 10000,
-      pool: 25000,
-      basement: 20000,
-      balcony: 8000
+      garage: 1260000,
+      garden: 840000,
+      pool: 2100000,
+      basement: 1680000,
+      balcony: 672000
     }
   }
 };
@@ -318,12 +319,12 @@ router.post('/ml-predict', auth, async (req, res) => {
           });
         }
 
-        return res.json({ 
-          success: true, 
-          message: 'Prediction completed', 
-          prediction, 
+        return res.json({
+          success: true,
+          message: 'Prediction completed',
+          prediction,
           predictionId: pricePrediction._id,
-          input: req.body 
+          input: req.body
         });
       } catch (err) {
         console.error('Invalid JSON from python:', err, stdout);

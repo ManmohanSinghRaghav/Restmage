@@ -36,16 +36,16 @@ interface CostEstimateComponentProps {
 
 const AMENITIES = ['garage', 'garden', 'pool', 'basement', 'balcony'];
 
-const PricePrediction: React.FC<CostEstimateComponentProps> = ({ 
-  projectId: propProjectId, 
-  floorPlanId: propFloorPlanId 
+const PricePrediction: React.FC<CostEstimateComponentProps> = ({
+  projectId: propProjectId,
+  floorPlanId: propFloorPlanId
 }) => {
   const navigate = useNavigate();
-  const { projectId: urlProjectId, floorPlanId: urlFloorPlanId } = useParams<{ 
-    projectId: string; 
-    floorPlanId: string;  
+  const { projectId: urlProjectId, floorPlanId: urlFloorPlanId } = useParams<{
+    projectId: string;
+    floorPlanId: string;
   }>();
-  
+
   const projectId = propProjectId || urlProjectId;
   const floorPlanId = propFloorPlanId || urlFloorPlanId;
 
@@ -121,10 +121,19 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
       const floorPlan = await floorPlansAPI.get(id);
       setSelectedFloorPlan(floorPlan);
       // Pre-fill inputs from floor plan
-      const plotArea = floorPlan.plot_summary.plot_width_ft * floorPlan.plot_summary.plot_length_ft;
-      setFormData(prev => ({ ...prev, area: plotArea }));
+      if (floorPlan && floorPlan.plot_summary) {
+        const plotArea = floorPlan.plot_summary.plot_width_ft * floorPlan.plot_summary.plot_length_ft;
+        setFormData(prev => ({ ...prev, area: plotArea }));
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to load floor plan');
+      console.error('Failed to load floor plan:', err);
+      // If it's a 404 or invalid ID, just ignore and let user select manually or proceed without it
+      if (err.response?.status === 404 || err.response?.status === 400) {
+        // Don't show error to user, just log it
+        console.log('Floor plan not found or invalid ID, proceeding without it');
+      } else {
+        setError(err.response?.data?.message || 'Failed to load floor plan');
+      }
     }
   };
 
@@ -185,6 +194,11 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
   };
 
   const formatCurrency = (amount: number) => {
+    if (amount >= 10000000) {
+      return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    } else if (amount >= 100000) {
+      return `₹${(amount / 100000).toFixed(2)} L`;
+    }
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
@@ -273,7 +287,7 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
                 )}
               />
             )}
-            
+
             <Divider sx={{ mt: 3 }} />
           </Box>
         )}

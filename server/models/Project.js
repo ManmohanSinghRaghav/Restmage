@@ -78,34 +78,53 @@ const projectSchema = new mongoose.Schema({
         min: 0
       },
       unit: String,
-      pricePerUnit: {
-        type: Number,
-        min: 0
-      }
+      pricePerUnit: Number
     }]
   },
-  // References to active floor plan and cost estimate
+
+  // Cost Estimation (Embedded)
+  costEstimation: {
+    materials: { type: Number, default: 0 },
+    labor: { type: Number, default: 0 },
+    permits: { type: Number, default: 0 },
+    equipment: { type: Number, default: 0 },
+    total: { type: Number, default: 0 },
+    breakdown: [{
+      category: String,
+      item: String,
+      quantity: Number,
+      unitCost: Number,
+      totalCost: Number
+    }],
+    lastCalculated: Date
+  },
+
   activeFloorPlan: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'FloorPlan'
   },
+
   activeCostEstimate: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'CostEstimate'
   },
+
   activePricePrediction: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'PricePrediction'
   },
+
   status: {
     type: String,
     enum: ['draft', 'in-progress', 'completed', 'archived'],
     default: 'draft'
   },
+
   isPublic: {
     type: Boolean,
     default: false
   },
+
   version: {
     type: Number,
     default: 1
@@ -118,9 +137,9 @@ const projectSchema = new mongoose.Schema({
 projectSchema.index({ 'propertyDetails.location.coordinates': '2dsphere' });
 
 // Index for text search
-projectSchema.index({ 
-  name: 'text', 
-  description: 'text', 
+projectSchema.index({
+  name: 'text',
+  description: 'text',
   'propertyDetails.location.address': 'text',
   'propertyDetails.location.city': 'text'
 });

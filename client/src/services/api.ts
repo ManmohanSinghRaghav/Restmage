@@ -317,4 +317,23 @@ export const costEstimatesAPI = {
   },
 };
 
+export const chatbotAPI = {
+  sendMessage: async (message: string, conversationId?: string): Promise<{
+    success: boolean;
+    conversationId: string;
+    userMessage: string;
+    botResponse: string;
+    source: string;
+    timestamp: string;
+  }> => {
+    const response = await api.post('/chatbot/message', { message, conversationId });
+    return response.data;
+  },
+
+  getHistory: async (conversationId: string): Promise<any[]> => {
+    const response = await api.get(`/chatbot/history/${conversationId}`);
+    return response.data.messages;
+  }
+};
+
 export default api;
