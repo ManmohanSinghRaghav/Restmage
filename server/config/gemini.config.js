@@ -3,20 +3,26 @@
  * Centralized configuration for Gemini API integration
  */
 
-console.log('Gemini Model Configured:', process.env.GEMINI_API_MODEL || 'gemini-1.5-flash');
+const GEMINI_MODEL = process.env.GEMINI_API_MODEL || 'gemini-1.5-flash';
+console.log('Gemini Model Configured:', GEMINI_MODEL);
+
+// Only include thinkingConfig for models that support it (gemini-2.0-flash-thinking-exp)
+const isThinkingModel = GEMINI_MODEL.includes('thinking');
 
 const GEMINI_CONFIG = {
   API_BASE_URL: 'https://generativelanguage.googleapis.com/v1beta',
-  MODEL: process.env.GEMINI_API_MODEL || 'gemini-1.5-flash',
+  MODEL: GEMINI_MODEL,
   GENERATION_CONFIG: {
     temperature: 0.7,
     topK: 40,
     topP: 0.95,
-    maxOutputTokens: 65536,
+    maxOutputTokens: 8192,
     responseMimeType: 'application/json',
-    thinkingConfig: {
-      thinkingBudget: 8192
-    }
+    ...(isThinkingModel && {
+      thinkingConfig: {
+        thinkingBudget: 8192
+      }
+    })
   },
 };
 

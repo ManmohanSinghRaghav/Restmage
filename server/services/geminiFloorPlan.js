@@ -68,6 +68,8 @@ function buildRequestBody(prompt) {
  * @throws {Error} - If API call fails
  */
 async function callGeminiApi(url, body) {
+  console.log('Calling Gemini API with model:', GEMINI_CONFIG.MODEL);
+  
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -75,8 +77,16 @@ async function callGeminiApi(url, body) {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(`Gemini API Error: ${errorData.error?.message || response.statusText}`);
+    const errorText = await response.text();
+    let errorMessage;
+    try {
+      const errorData = JSON.parse(errorText);
+      errorMessage = errorData.error?.message || response.statusText;
+    } catch {
+      errorMessage = errorText || response.statusText;
+    }
+    console.error('Gemini API Error Response:', errorMessage);
+    throw new Error(`Gemini API Error (${response.status}): ${errorMessage}`);
   }
 
   return response.json();
