@@ -85,13 +85,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Make Socket.IO available to routes
 app.set('io', io);
 
-// Request logging middleware for debugging
+// Request logging middleware - reduced in production
 app.use((req, res, next) => {
-  console.log(`\n📨 ${req.method} ${req.url}`);
-  console.log('Origin:', req.headers.origin || 'No origin');
-  console.log('Content-Type:', req.headers['content-type'] || 'No content-type');
-  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
-    console.log('Body:', JSON.stringify(req.body, null, 2));
+  if (process.env.NODE_ENV === 'production') {
+    // Minimal logging in production
+    console.log(`${req.method} ${req.url}`);
+  } else {
+    // Verbose logging in development
+    console.log(`\n📨 ${req.method} ${req.url}`);
+    console.log('Origin:', req.headers.origin || 'No origin');
+    console.log('Content-Type:', req.headers['content-type'] || 'No content-type');
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+      console.log('Body:', JSON.stringify(req.body, null, 2));
+    }
   }
   next();
 });
@@ -172,8 +178,11 @@ const startServer = async () => {
     
     await verifyMongoDeployment(MONGODB_URI);
     
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    // Bind to 0.0.0.0 for production (required by Render and other cloud platforms)
+    const HOST = process.env.HOST || '0.0.0.0';
+    server.listen(PORT, HOST, () => {
+      console.log(`Server running on ${HOST}:${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`API available at http://localhost:${PORT}/api`);
       console.log(`WebSocket ready for real-time updates`);
     });
@@ -183,14 +192,25 @@ const startServer = async () => {
   }
 };
 
-const shutdownGracefully = () => {
-  console.log('SIGTERM received. Shutting down gracefully');
+const shutdownGracefully = (signal) => {
+  console.log(`${signal} received. Shutting down gracefully`);
   server.close(() => {
-    console.log('Server closed. Process terminated');
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      console.log('Server closed. Process terminated');
+      process.exit(0);
+    });
   });
+  
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
 };
 
-process.on('SIGTERM', shutdownGracefully);
+process.on('SIGTERM', () => shutdownGracefully('SIGTERM'));
+process.on('SIGINT', () => shutdownGracefully('SIGINT'));
 
 startServer();
 
