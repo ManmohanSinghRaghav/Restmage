@@ -46,9 +46,11 @@ const io = socketIo(server, {
       if (!origin) return callback(null, true);
       if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
       if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
+      console.warn('Socket.IO CORS blocked origin:', origin);
+      return callback(null, false);
     },
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -59,21 +61,29 @@ const apiRateLimiter = rateLimit({
 
 // CORS must be applied BEFORE helmet and other middleware
 // to properly handle preflight OPTIONS requests
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
+    // Log origin for debugging in production
+    if (isProduction) {
+      console.log('CORS request from origin:', origin);
+    }
     if (ALLOW_ALL_ORIGINS) return callback(null, true);
     if (!origin) return callback(null, true);
     if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    // Return false instead of error to avoid crashing - will result in no CORS headers
+    console.warn('CORS blocked origin:', origin, '| Allowed:', ALLOWED_ORIGINS);
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
-}));
+};
+
+app.use(cors(corsOptions));
 
 // Handle preflight requests explicitly
-app.options('*', cors());
+app.options('*', cors(corsOptions));
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
