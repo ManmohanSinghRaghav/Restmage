@@ -4,13 +4,14 @@
  */
 
 const axios = require('axios');
+const crypto = require('crypto');
 
 /**
  * Generate a random test user
  * @returns {Object} User credentials with random email
  */
 function generateTestUser() {
-  const randomId = Math.floor(Math.random() * 10000);
+  const randomId = crypto.randomInt(10000);
   return {
     username: `testuser${randomId}`,
     email: `testuser${randomId}@test.com`,
