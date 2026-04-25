@@ -210,7 +210,13 @@ router.get('/', auth, async (req, res) => {
 
     const query = { createdBy: userId };
     if (projectId) {
-      if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      if (typeof projectId !== 'string' || !mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid projectId'
+        });
+      }
+      query.project = new mongoose.Types.ObjectId(projectId);
         return res.status(400).json({
           success: false,
           message: 'Invalid projectId'
