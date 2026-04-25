@@ -1,9 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Box } from '@mui/material';
 
+import { ThemeProviderWrapper } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -19,16 +19,7 @@ import FloorPlanGenerator from './components/FloorPlan/FloorPlanGenerator';
 import PricePrediction from './components/PricePrediction/PricePrediction';
 import Chatbot from './components/Chatbot/Chatbot';
 
-const APPLICATION_THEME = createTheme({
-  palette: {
-    primary: { main: '#667eea' },
-    secondary: { main: '#764ba2' },
-    background: { default: '#f5f5f5' },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-  },
-});
+
 
 const LOADING_MESSAGE = 'Loading...';
 const MAIN_CONTENT_TOP_MARGIN = 8;
@@ -141,7 +132,7 @@ const AppContent: React.FC = () => {
 
 function App() {
   return (
-    <ThemeProvider theme={APPLICATION_THEME}>
+    <ThemeProviderWrapper>
       <CssBaseline />
       <AuthProvider>
         <NotificationProvider>
@@ -152,7 +143,7 @@ function App() {
           </SocketProvider>
         </NotificationProvider>
       </AuthProvider>
-    </ThemeProvider>
+    </ThemeProviderWrapper>
   );
 }
 

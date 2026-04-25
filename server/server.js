@@ -130,29 +130,53 @@ app.use('*', handleNotFound);
 const startServer = async () => {
   try {
     await mongoose.connect(MONGODB_URI);
-    console.log('Connected to MongoDB with Mongoose');
-    
+    console.log('✅ Connected to MongoDB with Mongoose');
     await verifyMongoDeployment(MONGODB_URI);
-    
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`API available at http://localhost:${PORT}/api`);
-      console.log(`WebSocket ready for real-time updates`);
-    });
   } catch (error) {
-    console.error('Database connection error:', error);
-    process.exit(1);
+    console.warn('\n⚠️ WARNING: Database connection failed.');
+    console.warn('The server is running in degraded mode. Please ensure MongoDB is running or update MONGODB_URI in .env.');
   }
-};
 
-const shutdownGracefully = () => {
-  console.log('SIGTERM received. Shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed. Process terminated');
+  server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`API available at http://localhost:${PORT}/api`);
+    console.log(`WebSocket ready for real-time updates`);
   });
 };
 
-process.on('SIGTERM', shutdownGracefully);
+const gracefulShutdown = (signal) => {
+  console.log(`\nReceived ${signal}. Shutting down gracefully...`);
+  
+  // Close the server first to stop accepting new requests
+  server.close(async () => {
+    console.log('HTTP server closed.');
+    
+    try {
+      // Close MongoDB connection
+      await mongoose.connection.close();
+      console.log('MongoDB connection closed.');
+      process.exit(0);
+    } catch (err) {
+      console.error('Error during MongoDB disconnect:', err);
+      process.exit(1);
+    }
+  });
+
+  // Force exit if shutdown takes too long (10s)
+  setTimeout(() => {
+    console.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+};
+
+// Handle termination signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle unhandled rejections/exceptions to prevent "hidden" crashes
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
 
 startServer();
 

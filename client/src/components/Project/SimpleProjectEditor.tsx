@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Container,
-  Paper,
+  Box,
   Typography,
   TextField,
   Button,
@@ -10,7 +9,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Box,
   IconButton,
   Table,
   TableBody,
@@ -20,28 +18,38 @@ import {
   TableRow,
   Alert,
   CircularProgress,
+  Divider,
+  Fade,
+  Paper,
 } from '@mui/material';
 import {
   Save as SaveIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
   Calculate as CalculateIcon,
+  Layers as LayersIcon,
+  Map as MapIcon,
+  AttachMoney as MoneyIcon,
+  Architecture as ArchIcon,
 } from '@mui/icons-material';
 import InteractiveMap from '../Map/InteractiveMap';
 import { Project } from '../../types';
 import { projectsAPI, costAPI } from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
+import { useTheme } from '@mui/material/styles';
 
 const SimpleProjectEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showNotification } = useNotification();
+  const theme = useTheme();
   
   const isNewProject = id === 'new';
   
   const [loading, setLoading] = useState(!isNewProject);
   const [saving, setSaving] = useState(false);
   const [calculating, setCalculating] = useState(false);
+  const [activeTab, setActiveTab] = useState<'info' | 'materials' | 'cost'>('info');
   
   const [project, setProject] = useState<Partial<Project>>({
     name: '',
@@ -55,12 +63,7 @@ const SimpleProjectEditor: React.FC = () => {
         zipCode: '',
         coordinates: { lat: 40.7128, lng: -74.0060 }
       },
-      dimensions: {
-        length: 0,
-        width: 0,
-        height: 0,
-        unit: 'feet'
-      },
+      dimensions: { length: 0, width: 0, height: 0, unit: 'feet' },
       materials: []
     },
     mapData: {
@@ -101,7 +104,6 @@ const SimpleProjectEditor: React.FC = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
-      
       if (isNewProject) {
         const savedProject = await projectsAPI.createProject(project);
         setProject(savedProject);
@@ -124,14 +126,11 @@ const SimpleProjectEditor: React.FC = () => {
       showNotification('Please save the project first', 'warning');
       return;
     }
-
     try {
       setCalculating(true);
       const costEstimation = await costAPI.calculateCost(project._id);
-      setProject(prev => ({
-        ...prev,
-        costEstimation
-      }));
+      setProject(prev => ({ ...prev, costEstimation }));
+      setActiveTab('cost');
       showNotification('Cost estimation calculated successfully', 'success');
     } catch (error) {
       showNotification('Failed to calculate cost', 'error');
@@ -146,10 +145,7 @@ const SimpleProjectEditor: React.FC = () => {
         ...prev,
         propertyDetails: {
           ...prev.propertyDetails!,
-          materials: [
-            ...prev.propertyDetails!.materials,
-            { ...newMaterial }
-          ]
+          materials: [...(prev.propertyDetails?.materials || []), { ...newMaterial }]
         }
       }));
       setNewMaterial({ type: '', quantity: 0, unit: '', pricePerUnit: 0 });
@@ -158,324 +154,254 @@ const SimpleProjectEditor: React.FC = () => {
 
   if (loading) {
     return (
-      <Container>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
-      </Container>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+        <CircularProgress size={60} thickness={4} color="primary" />
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ py: 2 }}>
-        {/* Header */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4">
-            {isNewProject ? 'Create New Project' : 'Edit Project'}
-          </Typography>
+    <Box sx={{ 
+      display: 'flex', 
+      height: 'calc(100vh - 80px)', 
+      overflow: 'hidden',
+      borderRadius: theme.shape.borderRadius,
+      boxShadow: theme.shadows[10],
+      bgcolor: 'background.paper',
+      position: 'relative'
+    }}>
+      {/* LEFT PANE: MAP AREA */}
+      <Box sx={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <InteractiveMap
+          center={[project.mapData?.center?.lat || 40.7128, project.mapData?.center?.lng || -74.0060]}
+          zoom={project.mapData?.zoom || 13}
+          layers={project.mapData?.layers || []}
+          onLayerAdd={(layer) => setProject(prev => ({
+            ...prev,
+            mapData: { ...prev.mapData!, layers: [...prev.mapData!.layers, layer] }
+          }))}
+          onLayerDelete={(layerId) => setProject(prev => ({
+            ...prev,
+            mapData: { ...prev.mapData!, layers: prev.mapData!.layers.filter(l => l.id !== layerId) }
+          }))}
+          onMapUpdate={(center, zoom) => setProject(prev => ({
+            ...prev,
+            mapData: { ...prev.mapData!, center: { lat: center[0], lng: center[1] }, zoom }
+          }))}
+          editable={true}
+        />
+        
+        {/* Floating Save Button on Map */}
+        <Box sx={{ position: 'absolute', top: 20, right: 20, zIndex: 1000 }}>
           <Button
             variant="contained"
-            startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
+            color="primary"
+            size="large"
+            startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
             onClick={handleSave}
             disabled={saving}
+            sx={{ 
+              backdropFilter: 'blur(10px)',
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.8)',
+              color: '#fff',
+              '&:hover': {
+                 backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.9)',
+              }
+            }}
           >
-            {saving ? 'Saving...' : 'Save Project'}
+            {saving ? 'Saving...' : 'Save Workspace'}
           </Button>
         </Box>
+      </Box>
 
-        {/* Basic Information */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Basic Information
+      {/* RIGHT PANE: CONTROLS & INFO */}
+      <Box sx={{ 
+        width: '400px', 
+        display: 'flex', 
+        flexDirection: 'column',
+        borderLeft: `1px solid ${theme.palette.divider}`,
+        bgcolor: theme.palette.mode === 'dark' ? 'rgba(10,10,20,0.95)' : 'rgba(255,255,255,0.95)',
+        backdropFilter: 'blur(20px)',
+        zIndex: 10,
+        boxShadow: '-10px 0 30px rgba(0,0,0,0.1)'
+      }}>
+        {/* Workspace Header */}
+        <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}` }}>
+          <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5 }}>
+            {project.name || 'Untitled Project'}
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              fullWidth
-              label="Project Name"
-              value={project.name || ''}
-              onChange={(e) => setProject(prev => ({ ...prev, name: e.target.value }))}
-              required
-            />
-            <TextField
-              fullWidth
-              label="Description"
-              multiline
-              rows={3}
-              value={project.description || ''}
-              onChange={(e) => setProject(prev => ({ ...prev, description: e.target.value }))}
-            />
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <FormControl sx={{ minWidth: 200 }}>
+          <Typography variant="body2" color="text.secondary">
+            {isNewProject ? 'Setup your new real estate workspace' : `Editing project details`}
+          </Typography>
+        </Box>
+
+        {/* Custom Tabs */}
+        <Box sx={{ display: 'flex', borderBottom: `1px solid ${theme.palette.divider}` }}>
+          {[
+            { id: 'info', icon: <ArchIcon fontSize="small" />, label: 'Details' },
+            { id: 'materials', icon: <LayersIcon fontSize="small" />, label: 'Materials' },
+            { id: 'cost', icon: <MoneyIcon fontSize="small" />, label: 'Costing' },
+          ].map(tab => (
+            <Box
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              sx={{
+                flex: 1,
+                py: 1.5,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                cursor: 'pointer',
+                borderBottom: activeTab === tab.id ? `3px solid ${theme.palette.primary.main}` : '3px solid transparent',
+                color: activeTab === tab.id ? 'primary.main' : 'text.secondary',
+                transition: 'all 0.2s',
+                '&:hover': { bgcolor: 'action.hover' }
+              }}
+            >
+              {tab.icon}
+              <Typography variant="caption" sx={{ mt: 0.5, fontWeight: activeTab === tab.id ? 700 : 500 }}>
+                {tab.label}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+
+        {/* Tab Content Area (Scrollable) */}
+        <Box sx={{ p: 3, flex: 1, overflowY: 'auto' }}>
+          
+          {/* INFO TAB */}
+          <Fade in={activeTab === 'info'} unmountOnExit>
+            <Box sx={{ display: activeTab === 'info' ? 'block' : 'none' }}>
+              <TextField
+                fullWidth label="Project Name" variant="outlined" margin="normal"
+                value={project.name || ''} onChange={(e) => setProject(p => ({ ...p, name: e.target.value }))}
+              />
+              <TextField
+                fullWidth label="Description" variant="outlined" margin="normal" multiline rows={3}
+                value={project.description || ''} onChange={(e) => setProject(p => ({ ...p, description: e.target.value }))}
+              />
+              <FormControl fullWidth margin="normal">
                 <InputLabel>Property Type</InputLabel>
                 <Select
                   value={project.propertyDetails?.type || 'residential'}
-                  onChange={(e) => setProject(prev => ({
-                    ...prev,
-                    propertyDetails: {
-                      ...prev.propertyDetails!,
-                      type: e.target.value as any
-                    }
-                  }))}
+                  onChange={(e) => setProject(p => ({ ...p, propertyDetails: { ...p.propertyDetails!, type: e.target.value as any } }))}
                 >
                   <MenuItem value="residential">Residential</MenuItem>
                   <MenuItem value="commercial">Commercial</MenuItem>
                   <MenuItem value="industrial">Industrial</MenuItem>
-                  <MenuItem value="mixed-use">Mixed Use</MenuItem>
                 </Select>
               </FormControl>
-              <FormControl sx={{ minWidth: 150 }}>
-                <InputLabel>Status</InputLabel>
+              
+              <Divider sx={{ my: 3 }}><Typography variant="caption" color="text.secondary">DIMENSIONS</Typography></Divider>
+              
+              <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                <TextField label="Length" type="number" size="small"
+                  value={project.propertyDetails?.dimensions?.length || ''}
+                  onChange={(e) => setProject(p => ({ ...p, propertyDetails: { ...p.propertyDetails!, dimensions: { ...p.propertyDetails!.dimensions, length: parseFloat(e.target.value) || 0 } } }))}
+                />
+                <TextField label="Width" type="number" size="small"
+                  value={project.propertyDetails?.dimensions?.width || ''}
+                  onChange={(e) => setProject(p => ({ ...p, propertyDetails: { ...p.propertyDetails!, dimensions: { ...p.propertyDetails!.dimensions, width: parseFloat(e.target.value) || 0 } } }))}
+                />
+              </Box>
+              <FormControl fullWidth margin="normal" size="small">
+                <InputLabel>Unit</InputLabel>
                 <Select
-                  value={project.status || 'draft'}
-                  onChange={(e) => setProject(prev => ({ ...prev, status: e.target.value as any }))}
+                  value={project.propertyDetails?.dimensions?.unit || 'feet'}
+                  onChange={(e) => setProject(p => ({ ...p, propertyDetails: { ...p.propertyDetails!, dimensions: { ...p.propertyDetails!.dimensions, unit: e.target.value as any } } }))}
                 >
-                  <MenuItem value="draft">Draft</MenuItem>
-                  <MenuItem value="in-progress">In Progress</MenuItem>
-                  <MenuItem value="completed">Completed</MenuItem>
+                  <MenuItem value="feet">Feet (ft)</MenuItem>
+                  <MenuItem value="meters">Meters (m)</MenuItem>
                 </Select>
               </FormControl>
             </Box>
-          </Box>
-        </Paper>
+          </Fade>
 
-        {/* Dimensions */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>
-            Property Dimensions
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'end' }}>
-            <TextField
-              label="Length"
-              type="number"
-              value={project.propertyDetails?.dimensions?.length || ''}
-              onChange={(e) => setProject(prev => ({
-                ...prev,
-                propertyDetails: {
-                  ...prev.propertyDetails!,
-                  dimensions: {
-                    ...prev.propertyDetails!.dimensions,
-                    length: parseFloat(e.target.value) || 0
-                  }
-                }
-              }))}
-              required
-            />
-            <TextField
-              label="Width"
-              type="number"
-              value={project.propertyDetails?.dimensions?.width || ''}
-              onChange={(e) => setProject(prev => ({
-                ...prev,
-                propertyDetails: {
-                  ...prev.propertyDetails!,
-                  dimensions: {
-                    ...prev.propertyDetails!.dimensions,
-                    width: parseFloat(e.target.value) || 0
-                  }
-                }
-              }))}
-              required
-            />
-            <TextField
-              label="Height"
-              type="number"
-              value={project.propertyDetails?.dimensions?.height || ''}
-              onChange={(e) => setProject(prev => ({
-                ...prev,
-                propertyDetails: {
-                  ...prev.propertyDetails!,
-                  dimensions: {
-                    ...prev.propertyDetails!.dimensions,
-                    height: parseFloat(e.target.value) || 0
-                  }
-                }
-              }))}
-              required
-            />
-            <FormControl sx={{ minWidth: 100 }}>
-              <InputLabel>Unit</InputLabel>
-              <Select
-                value={project.propertyDetails?.dimensions?.unit || 'feet'}
-                onChange={(e) => setProject(prev => ({
-                  ...prev,
-                  propertyDetails: {
-                    ...prev.propertyDetails!,
-                    dimensions: {
-                      ...prev.propertyDetails!.dimensions,
-                      unit: e.target.value as any
-                    }
-                  }
-                }))}
-              >
-                <MenuItem value="feet">Feet</MenuItem>
-                <MenuItem value="meters">Meters</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-          {project.propertyDetails?.dimensions?.length && project.propertyDetails?.dimensions?.width && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              Square footage: {(project.propertyDetails.dimensions.length * project.propertyDetails.dimensions.width).toFixed(0)} {project.propertyDetails.dimensions.unit}²
-            </Alert>
-          )}
-        </Paper>
+          {/* MATERIALS TAB */}
+          <Fade in={activeTab === 'materials'} unmountOnExit>
+            <Box sx={{ display: activeTab === 'materials' ? 'block' : 'none' }}>
+              <Paper variant="outlined" sx={{ p: 2, mb: 3, bgcolor: 'background.default' }}>
+                <Typography variant="subtitle2" gutterBottom>Add New Material</Typography>
+                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 1.5 }}>
+                  <TextField size="small" label="Material" value={newMaterial.type} onChange={e => setNewMaterial(p => ({ ...p, type: e.target.value }))} />
+                  <TextField size="small" label="Qty" type="number" value={newMaterial.quantity} onChange={e => setNewMaterial(p => ({ ...p, quantity: parseFloat(e.target.value) || 0 }))} />
+                  <TextField size="small" label="Unit (e.g. sqft)" value={newMaterial.unit} onChange={e => setNewMaterial(p => ({ ...p, unit: e.target.value }))} />
+                  <TextField size="small" label="Price/Unit ($)" type="number" value={newMaterial.pricePerUnit} onChange={e => setNewMaterial(p => ({ ...p, pricePerUnit: parseFloat(e.target.value) || 0 }))} />
+                </Box>
+                <Button fullWidth variant="contained" color="secondary" startIcon={<AddIcon />} onClick={handleAddMaterial} disabled={!newMaterial.type || newMaterial.quantity <= 0}>
+                  Add Material
+                </Button>
+              </Paper>
 
-        {/* Cost Estimation */}
-        {project.costEstimation && (
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Typography variant="h6">Cost Estimation</Typography>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>Current Materials</Typography>
+              {project.propertyDetails?.materials?.map((mat, idx) => (
+                <Paper key={idx} variant="outlined" sx={{ p: 1.5, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{mat.type}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {mat.quantity} {mat.unit} @ ${mat.pricePerUnit}/unit
+                    </Typography>
+                  </Box>
+                  <IconButton size="small" color="error" onClick={() => setProject(p => ({
+                    ...p, propertyDetails: { ...p.propertyDetails!, materials: p.propertyDetails!.materials.filter((_, i) => i !== idx) }
+                  }))}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Paper>
+              ))}
+              {(!project.propertyDetails?.materials || project.propertyDetails.materials.length === 0) && (
+                <Alert severity="info" sx={{ mt: 2 }}>No materials added.</Alert>
+              )}
+            </Box>
+          </Fade>
+
+          {/* COSTING TAB */}
+          <Fade in={activeTab === 'cost'} unmountOnExit>
+            <Box sx={{ display: activeTab === 'cost' ? 'block' : 'none' }}>
               <Button
-                variant="outlined"
-                size="small"
-                startIcon={calculating ? <CircularProgress size={16} /> : <CalculateIcon />}
+                fullWidth
+                variant="contained"
+                color="primary"
+                size="large"
+                startIcon={calculating ? <CircularProgress size={20} color="inherit" /> : <CalculateIcon />}
                 onClick={handleCalculateCost}
                 disabled={calculating}
+                sx={{ mb: 3 }}
               >
-                Recalculate
+                {calculating ? 'Calculating Engine...' : 'Run Cost Estimation'}
               </Button>
+
+              {project.costEstimation ? (
+                <Box>
+                  <Paper sx={{ p: 3, textAlign: 'center', mb: 2, background: theme.palette.mode === 'dark' ? 'linear-gradient(45deg, #1A1A2E 30%, #16213E 90%)' : 'linear-gradient(45deg, #f3f4f6 30%, #e5e7eb 90%)' }}>
+                    <Typography variant="overline" color="text.secondary">Estimated Total</Typography>
+                    <Typography variant="h3" color="primary" sx={{ fontWeight: 800 }}>
+                      ${project.costEstimation.total.toLocaleString()}
+                    </Typography>
+                  </Paper>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+                    <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography variant="caption" color="text.secondary">Materials</Typography>
+                      <Typography variant="h6">${project.costEstimation.materials.toLocaleString()}</Typography>
+                    </Paper>
+                    <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography variant="caption" color="text.secondary">Labor</Typography>
+                      <Typography variant="h6">${project.costEstimation.labor.toLocaleString()}</Typography>
+                    </Paper>
+                  </Box>
+                </Box>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 5, opacity: 0.5 }}>
+                  <MoneyIcon sx={{ fontSize: 60, mb: 2 }} />
+                  <Typography>Run the estimation engine to see your project's financial breakdown.</Typography>
+                </Box>
+              )}
             </Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
-              <Box>
-                <Typography variant="body2" color="textSecondary">Materials</Typography>
-                <Typography variant="h6">${project.costEstimation.materials.toLocaleString()}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary">Labor</Typography>
-                <Typography variant="h6">${project.costEstimation.labor.toLocaleString()}</Typography>
-              </Box>
-              <Box>
-                <Typography variant="body2" color="textSecondary">Total</Typography>
-                <Typography variant="h4" color="primary">
-                  ${project.costEstimation.total.toLocaleString()}
-                </Typography>
-              </Box>
-            </Box>
-          </Paper>
-        )}
+          </Fade>
 
-        {/* Materials */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" gutterBottom>Materials</Typography>
-          
-          <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'end' }}>
-            <TextField
-              label="Material Type"
-              value={newMaterial.type}
-              onChange={(e) => setNewMaterial(prev => ({ ...prev, type: e.target.value }))}
-            />
-            <TextField
-              label="Quantity"
-              type="number"
-              value={newMaterial.quantity}
-              onChange={(e) => setNewMaterial(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
-            />
-            <TextField
-              label="Unit"
-              value={newMaterial.unit}
-              onChange={(e) => setNewMaterial(prev => ({ ...prev, unit: e.target.value }))}
-            />
-            <TextField
-              label="Price/Unit"
-              type="number"
-              value={newMaterial.pricePerUnit}
-              onChange={(e) => setNewMaterial(prev => ({ ...prev, pricePerUnit: parseFloat(e.target.value) || 0 }))}
-            />
-            <IconButton
-              color="primary"
-              onClick={handleAddMaterial}
-              disabled={!newMaterial.type || newMaterial.quantity <= 0}
-            >
-              <AddIcon />
-            </IconButton>
-          </Box>
-
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Material</TableCell>
-                  <TableCell>Quantity</TableCell>
-                  <TableCell>Price/Unit</TableCell>
-                  <TableCell>Total</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {project.propertyDetails?.materials?.map((material, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{material.type}</TableCell>
-                    <TableCell>{material.quantity} {material.unit}</TableCell>
-                    <TableCell>${(material.pricePerUnit || 0).toFixed(2)}</TableCell>
-                    <TableCell>${((material.pricePerUnit || 0) * material.quantity).toFixed(2)}</TableCell>
-                    <TableCell>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => {
-                          setProject(prev => ({
-                            ...prev,
-                            propertyDetails: {
-                              ...prev.propertyDetails!,
-                              materials: prev.propertyDetails!.materials.filter((_, i) => i !== index)
-                            }
-                          }));
-                        }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {(!project.propertyDetails?.materials || project.propertyDetails.materials.length === 0) && (
-                  <TableRow>
-                    <TableCell colSpan={5} align="center">No materials added yet</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Paper>
-
-        {/* Interactive Map */}
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Interactive Map</Typography>
-          <Box sx={{ height: 500, border: '1px solid #ddd', borderRadius: 1 }}>
-            <InteractiveMap
-              center={[project.mapData?.center?.lat || 40.7128, project.mapData?.center?.lng || -74.0060]}
-              zoom={project.mapData?.zoom || 13}
-              layers={project.mapData?.layers || []}
-              onLayerAdd={(layer) => setProject(prev => ({
-                ...prev,
-                mapData: {
-                  ...prev.mapData!,
-                  layers: [...prev.mapData!.layers, layer]
-                }
-              }))}
-              onLayerDelete={(layerId) => setProject(prev => ({
-                ...prev,
-                mapData: {
-                  ...prev.mapData!,
-                  layers: prev.mapData!.layers.filter(l => l.id !== layerId)
-                }
-              }))}
-              onMapUpdate={(center, zoom) => setProject(prev => ({
-                ...prev,
-                mapData: {
-                  ...prev.mapData!,
-                  center: { lat: center[0], lng: center[1] },
-                  zoom
-                }
-              }))}
-              editable={true}
-            />
-          </Box>
-          <Alert severity="info" sx={{ mt: 2 }}>
-            Use the drawing tools to add markers and shapes to your property map.
-          </Alert>
-        </Paper>
+        </Box>
       </Box>
-    </Container>
+    </Box>
   );
 };
 
