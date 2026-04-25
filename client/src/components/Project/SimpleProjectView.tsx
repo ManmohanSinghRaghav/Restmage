@@ -82,7 +82,7 @@ const SimpleProjectView: React.FC = () => {
   }, [id, showNotification, navigate, loadFloorPlans, loadCostEstimates]);
 
   useEffect(() => {
-    if (id) {
+    if (id && id !== 'new') {
       loadProject();
     }
   }, [id, loadProject]);

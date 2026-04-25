@@ -66,11 +66,8 @@ const Register: React.FC = () => {
         boxShadow: theme.shadows[8],
       }}>
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Box sx={{
-            width: 56, height: 56, borderRadius: 2, bgcolor: 'secondary.main',
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', mb: 2
-          }}>
-            <PersonAddOutlined sx={{ color: '#fff', fontSize: 28 }} />
+          <Box sx={{ mb: 2 }}>
+            <img src="/logo512.png" alt="Restmage Logo" style={{ width: 64, height: 64, borderRadius: 12 }} />
           </Box>
           <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
             REST✨MAGE

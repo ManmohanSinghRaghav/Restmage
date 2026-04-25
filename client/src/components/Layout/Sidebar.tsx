@@ -4,17 +4,11 @@ import {
   Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Divider, Box, Typography
 } from '@mui/material';
 import {
-<<<<<<< HEAD
-  Dashboard as DashboardIcon, Add as AddIcon,
-  TrendingUp, Chat as ChatIcon, Architecture
-=======
   Dashboard as DashboardIcon,
   Add as AddIcon,
-  Home as FloorPlanIcon,
-  AttachMoney as PriceIcon,
   Chat as ChatIcon,
-  Edit as EditorIcon,
->>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
+  Architecture,
+  TrendingUp,
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 
@@ -41,42 +35,10 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const location = useLocation();
   const theme = useTheme();
 
-<<<<<<< HEAD
-  const handleNav = (path: string) => { navigate(path); onClose(); };
-=======
-  const menuItems = [
-    {
-      text: 'Dashboard',
-      icon: <DashboardIcon />,
-      path: '/dashboard',
-    },
-    {
-      text: 'Floor Plan Generator',
-      icon: <FloorPlanIcon />,
-      path: '/floorplan',
-    },
-    {
-      text: 'Floor Plan Editor',
-      icon: <EditorIcon />,
-      path: '/map-editor',
-    },
-    {
-      text: 'Price Prediction',
-      icon: <PriceIcon />,
-      path: '/price-prediction',
-    },
-    {
-      text: 'AI Chatbot',
-      icon: <ChatIcon />,
-      path: '/chatbot',
-    },
-    {
-      text: 'New Project',
-      icon: <AddIcon />,
-      path: '/project/new/edit',
-    },
-  ];
->>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
+  const handleNav = (path: string) => {
+    navigate(path);
+    onClose();
+  };
 
   const NavItem = ({ item }: { item: { text: string; icon: React.ReactElement; path: string } }) => {
     const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
@@ -104,7 +66,8 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
 
   const content = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar>
+      <Toolbar sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <img src="/logo192.png" alt="Restmage Logo" style={{ width: 32, height: 32, borderRadius: 4 }} />
         <Typography variant="h6" sx={{ fontWeight: 800, letterSpacing: 0.5 }}>REST✨MAGE</Typography>
       </Toolbar>
       <Divider />

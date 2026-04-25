@@ -14,6 +14,7 @@ import {
   Send as SendIcon,
   SmartToy as BotIcon,
 } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import { chatbotAPI } from '../../services/api';
 
 interface Message {
@@ -24,6 +25,7 @@ interface Message {
 }
 
 const Chatbot: React.FC = () => {
+  const theme = useTheme();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -109,66 +111,83 @@ const Chatbot: React.FC = () => {
     setInputMessage(question);
   };
 
+  const isDark = theme.palette.mode === 'dark';
+
   return (
     <Box sx={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column', p: 2 }}>
-      <Paper elevation={3} sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <Paper elevation={3} sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', border: `1px solid ${theme.palette.divider}` }}>
         {/* Header */}
-        <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white', display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'primary.contrastText', display: 'flex', alignItems: 'center' }}>
           <BotIcon sx={{ mr: 2, fontSize: 32 }} />
           <Box>
-            <Typography variant="h6">
+            <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
               Real Estate Assistant
             </Typography>
-            <Typography variant="caption">
+            <Typography variant="caption" sx={{ opacity: 0.8 }}>
               Always here to help with your property needs
             </Typography>
           </Box>
         </Box>
 
         {/* Messages */}
-        <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: '#fafafa' }}>
-          <List>
+        <Box sx={{ 
+          flex: 1, 
+          overflow: 'auto', 
+          p: 2, 
+          bgcolor: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)',
+          backgroundImage: isDark ? 'radial-gradient(circle at 50% 50%, rgba(255,255,255,0.02) 0%, transparent 100%)' : 'none'
+        }}>
+          <List sx={{ display: 'flex', flexDirection: 'column' }}>
             {messages.map((message) => (
               <motion.div
                 key={message.id}
-                initial={{ y: 20, opacity: 0 }}
+                initial={{ y: 10, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ type: 'spring', bounce: 0.4 }}
+                transition={{ duration: 0.3 }}
+                style={{ alignSelf: message.sender === 'user' ? 'flex-end' : 'flex-start', width: '100%', maxWidth: '85%' }}
               >
                 <ListItem
                   sx={{
                     display: 'flex',
                     justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
-                    mb: 1
+                    px: 0,
+                    py: 0.5
                   }}
                 >
                   <Paper
-                    elevation={2}
+                    elevation={0}
                     sx={{
-                      p: 2,
-                      maxWidth: '75%',
-                      bgcolor: message.sender === 'user' ? '#0066ff' : '#e3e3e3',
-                      color: message.sender === 'user' ? 'white' : 'black',
-                      borderRadius: '18px',
+                      p: 1.5,
+                      px: 2,
+                      bgcolor: message.sender === 'user' ? 'primary.main' : 'background.paper',
+                      color: message.sender === 'user' ? 'primary.contrastText' : 'text.primary',
+                      borderRadius: message.sender === 'user' 
+                        ? `${theme.shape.borderRadius}px ${theme.shape.borderRadius}px 0 ${theme.shape.borderRadius}px` 
+                        : `${theme.shape.borderRadius}px ${theme.shape.borderRadius}px ${theme.shape.borderRadius}px 0`,
+                      border: message.sender === 'user' ? 'none' : `1px solid ${theme.palette.divider}`,
+                      boxShadow: theme.shadows[1],
                       whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word'
                     }}
                   >
-                    <Typography variant="body1" sx={{ fontSize: '14px' }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.9rem', lineHeight: 1.5 }}>
                       {message.text}
+                    </Typography>
+                    <Typography variant="caption" sx={{ display: 'block', mt: 0.5, opacity: 0.6, fontSize: '0.7rem', textAlign: 'right' }}>
+                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Typography>
                   </Paper>
                 </ListItem>
               </motion.div>
             ))}
             {loading && (
-              <ListItem sx={{ display: 'flex', justifyContent: 'flex-start' }}>
-                <Paper elevation={2} sx={{ p: 2, bgcolor: '#e3e3e3', borderRadius: '18px' }}>
-                  <Typography variant="body1" color="text.secondary">
+              <Box sx={{ alignSelf: 'flex-start', mt: 1 }}>
+                <Paper elevation={0} sx={{ p: 1.5, px: 2, bgcolor: 'background.paper', border: `1px solid ${theme.palette.divider}`, borderRadius: `12px 12px 12px 0` }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
                     Typing...
                   </Typography>
                 </Paper>
-              </ListItem>
+              </Box>
             )}
           </List>
           <div ref={messagesEndRef} />
@@ -176,9 +195,9 @@ const Chatbot: React.FC = () => {
 
         {/* Quick Questions */}
         {messages.length <= 1 && (
-          <Box sx={{ px: 2, py: 1, borderTop: '1px solid #e0e0e0', bgcolor: 'white' }}>
-            <Typography variant="caption" color="text.secondary" gutterBottom>
-              Quick questions:
+          <Box sx={{ px: 2, py: 1.5, borderTop: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Suggested:
             </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
               {quickQuestions.map((question, index) => (
@@ -187,7 +206,11 @@ const Chatbot: React.FC = () => {
                   label={question}
                   size="small"
                   onClick={() => handleQuickQuestion(question)}
-                  sx={{ cursor: 'pointer' }}
+                  sx={{ 
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    '&:hover': { bgcolor: 'primary.light', color: 'primary.contrastText' }
+                  }}
                 />
               ))}
             </Box>
@@ -195,24 +218,33 @@ const Chatbot: React.FC = () => {
         )}
 
         {/* Input */}
-        <Box sx={{ p: 2, borderTop: '1px solid #e0e0e0', bgcolor: 'white', display: 'flex', gap: 1 }}>
+        <Box sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}`, bgcolor: 'background.paper', display: 'flex', gap: 1, alignItems: 'flex-end' }}>
           <TextField
             fullWidth
             multiline
-            maxRows={3}
-            placeholder="Type your message..."
+            maxRows={4}
+            placeholder="Ask anything about your project..."
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             disabled={loading}
             variant="outlined"
             size="small"
+            sx={{ 
+              '& .MuiOutlinedInput-root': { borderRadius: `${theme.shape.borderRadius}px` }
+            }}
           />
           <IconButton
             color="primary"
             onClick={sendMessage}
             disabled={loading || !inputMessage.trim()}
-            sx={{ alignSelf: 'flex-end' }}
+            sx={{ 
+              bgcolor: 'primary.main', 
+              color: 'primary.contrastText',
+              borderRadius: `${theme.shape.borderRadius}px`,
+              '&:hover': { bgcolor: 'primary.dark' },
+              '&.Mui-disabled': { bgcolor: 'action.disabledBackground' }
+            }}
           >
             <SendIcon />
           </IconButton>

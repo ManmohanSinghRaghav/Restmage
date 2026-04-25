@@ -46,8 +46,8 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
     floorPlanId: string;
   }>();
 
-  const projectId = propProjectId || urlProjectId;
-  const floorPlanId = propFloorPlanId || urlFloorPlanId;
+  const projectId = (propProjectId || urlProjectId) === 'new' ? undefined : (propProjectId || urlProjectId);
+  const floorPlanId = (propFloorPlanId || urlFloorPlanId) === 'new' ? undefined : (propFloorPlanId || urlFloorPlanId);
 
   // Form Data for ML Prediction
   const [formData, setFormData] = useState({
@@ -75,13 +75,13 @@ const PricePrediction: React.FC<CostEstimateComponentProps> = ({
 
   // Load project and floor plan if IDs provided
   useEffect(() => {
-    if (projectId) {
+    if (projectId && projectId !== 'new') {
       loadProject(projectId);
     }
   }, [projectId]);
 
   useEffect(() => {
-    if (floorPlanId) {
+    if (floorPlanId && floorPlanId !== 'new') {
       loadFloorPlan(floorPlanId);
     }
   }, [floorPlanId]);

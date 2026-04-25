@@ -265,72 +265,90 @@ router.post('/ml-predict', auth, async (req, res) => {
     py.stderr.on('data', chunk => { stderr += chunk.toString(); });
 
     py.on('error', err => {
-      console.error('Failed to start python process:', err);
-      return res.status(500).json({ success: false, message: 'Failed to start python process', error: err.message });
+      console.error('Failed to start python process, falling back to heuristic:', err);
+      // Fallback to heuristic
+      const prediction = predictPrice(req.body);
+      return saveAndSendHeuristic(prediction, req, res, 'ml-process-error');
     });
 
     py.on('close', async code => {
       if (code !== 0) {
-        console.error('Python prediction error:', stderr);
-        return res.status(500).json({ success: false, message: 'Python prediction failed', detail: stderr });
+        console.error('Python prediction error, falling back to heuristic:', stderr);
+        // Fallback to heuristic
+        const prediction = predictPrice(req.body);
+        return saveAndSendHeuristic(prediction, req, res, 'ml-script-error');
       }
 
       try {
         const out = JSON.parse(stdout);
         if (out.error) {
-          return res.status(400).json({ success: false, message: 'Prediction error', detail: out });
+          console.warn('ML script returned error, falling back to heuristic:', out.error);
+          const prediction = predictPrice(req.body);
+          return saveAndSendHeuristic(prediction, req, res, 'ml-model-error');
         }
 
         // Calculate heuristic breakdown to enrich the response
-        // The ML model only returns the total price, so we use the heuristic model
-        // to provide the breakdown of how different factors contribute to the price.
         const heuristic = predictPrice(req.body);
         const mlPrice = Math.round(out.predicted_price);
 
-        // Construct the full response object expected by the frontend
+        // Construct the full response object
         const prediction = {
           estimatedPrice: mlPrice,
           priceRange: {
             min: Math.round(mlPrice * 0.95),
             max: Math.round(mlPrice * 1.05)
           },
-          confidence: 0.92, // Assume ML model is more confident
+          confidence: 0.92,
           breakdown: heuristic.breakdown
         };
 
-        // Save prediction
-        const pricePrediction = new PricePrediction({
-          project: req.body.projectId || null,
-          name: req.body.name || 'ML Prediction',
-          inputFeatures: req.body,
-          estimatedPrice: prediction.estimatedPrice,
-          priceRange: prediction.priceRange,
-          confidence: prediction.confidence,
-          breakdown: prediction.breakdown,
-          predictionMethod: 'ml',
-          createdBy: req.user._id
-        });
-        await pricePrediction.save();
-
-        // Update project if projectId is provided
-        if (req.body.projectId) {
-          await Project.findByIdAndUpdate(req.body.projectId, {
-            activePricePrediction: pricePrediction._id
-          });
-        }
-
-        return res.json({
-          success: true,
-          message: 'Prediction completed',
-          prediction,
-          predictionId: pricePrediction._id,
-          input: req.body
-        });
+        await saveAndSendPrediction(prediction, req, res, 'ml');
       } catch (err) {
-        console.error('Invalid JSON from python:', err, stdout);
-        return res.status(500).json({ success: false, message: 'Invalid response from python script', raw: stdout });
+        console.error('Invalid JSON from python, falling back to heuristic:', err, stdout);
+        const prediction = predictPrice(req.body);
+        return saveAndSendHeuristic(prediction, req, res, 'ml-json-error');
       }
     });
+
+    // Helper functions for saving and sending
+    async function saveAndSendHeuristic(prediction, req, res, detail) {
+      const pricePrediction = new PricePrediction({
+        project: req.body.projectId || null,
+        name: req.body.name || 'Heuristic Fallback',
+        inputFeatures: req.body,
+        estimatedPrice: prediction.estimatedPrice,
+        priceRange: prediction.priceRange,
+        confidence: prediction.confidence,
+        breakdown: prediction.breakdown,
+        predictionMethod: 'heuristic-fallback',
+        createdBy: req.user._id,
+        notes: `Fallback triggered by: ${detail}`
+      });
+      await pricePrediction.save();
+      if (req.body.projectId) {
+        await Project.findByIdAndUpdate(req.body.projectId, { activePricePrediction: pricePrediction._id });
+      }
+      return res.json({ success: true, message: 'Prediction completed (fallback)', prediction, predictionId: pricePrediction._id, input: req.body });
+    }
+
+    async function saveAndSendPrediction(prediction, req, res, method) {
+      const pricePrediction = new PricePrediction({
+        project: req.body.projectId || null,
+        name: req.body.name || 'ML Prediction',
+        inputFeatures: req.body,
+        estimatedPrice: prediction.estimatedPrice,
+        priceRange: prediction.priceRange,
+        confidence: prediction.confidence,
+        breakdown: prediction.breakdown,
+        predictionMethod: method,
+        createdBy: req.user._id
+      });
+      await pricePrediction.save();
+      if (req.body.projectId) {
+        await Project.findByIdAndUpdate(req.body.projectId, { activePricePrediction: pricePrediction._id });
+      }
+      return res.json({ success: true, message: 'Prediction completed', prediction, predictionId: pricePrediction._id, input: req.body });
+    }
 
     // send input JSON to python stdin
     try {

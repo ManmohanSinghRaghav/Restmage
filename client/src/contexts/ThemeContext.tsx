@@ -24,7 +24,7 @@ interface ThemeProviderWrapperProps {
 export const ThemeProviderWrapper: React.FC<ThemeProviderWrapperProps> = ({ children }) => {
   const [currentTheme, setCurrentThemeState] = useState<ThemeName>(() => {
     const savedTheme = localStorage.getItem('restmage_theme') as ThemeName;
-    return savedTheme || 'midnight'; // Default to the premium Midnight Glass theme
+    return savedTheme || 'midnight'; // Default to the  Midnight Glass theme
   });
 
   const setTheme = (theme: ThemeName) => {

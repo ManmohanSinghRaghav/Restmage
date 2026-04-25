@@ -51,7 +51,7 @@ const pricePredictionSchema = new mongoose.Schema({
   },
   predictionMethod: {
     type: String,
-    enum: ['heuristic', 'ml'],
+    enum: ['heuristic', 'ml', 'heuristic-fallback'],
     default: 'heuristic'
   },
   isActive: {

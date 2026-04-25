@@ -18,7 +18,7 @@ interface FloorPlanGeneratorProps {
 const FloorPlanGenerator: React.FC<FloorPlanGeneratorProps> = ({ projectId: propProjectId }) => {
   const navigate = useNavigate();
   const { projectId: urlProjectId } = useParams<{ projectId: string }>();
-  const projectId = propProjectId || urlProjectId;
+  const projectId = (propProjectId || urlProjectId) === 'new' ? undefined : (propProjectId || urlProjectId);
 
   // Property inputs
   const [plotWidth, setPlotWidth] = useState<number>(60);
@@ -44,7 +44,7 @@ const FloorPlanGenerator: React.FC<FloorPlanGeneratorProps> = ({ projectId: prop
 
   // Load project if projectId provided
   useEffect(() => {
-    if (projectId) {
+    if (projectId && projectId !== 'new') {
       loadProject(projectId);
     }
   }, [projectId]);

@@ -65,9 +65,12 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         >
           <MenuIcon />
         </IconButton>
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 'bold', letterSpacing: 1 }}>
-          REST✨MAGE
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, gap: 1 }}>
+          <img src="/logo192.png" alt="Restmage Logo" style={{ width: 28, height: 28, borderRadius: 4 }} />
+          <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 'bold', letterSpacing: 1 }}>
+            REST✨MAGE
+          </Typography>
+        </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
           <IconButton color="inherit" onClick={handleThemeMenu} title="Change Theme">

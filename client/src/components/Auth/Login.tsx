@@ -24,15 +24,10 @@ const Login: React.FC = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-<<<<<<< HEAD
-    try {
-      await login({ email, password });
-      showNotification('Welcome back!', 'success');
-=======
-
+    
     // Trim inputs to avoid whitespace-only values
     const identifier = email.trim();
-    const pwd = password; // do not forcibly trim password characters, but you may trim leading/trailing
+    const pwd = password;
 
     if (!identifier) {
       setError('Please enter your email or username');
@@ -40,16 +35,9 @@ const Login: React.FC = () => {
       return;
     }
 
-    if (!pwd || pwd.length === 0) {
-      setError('Please enter your password');
-      setLoading(false);
-      return;
-    }
-
     try {
       await login({ email: identifier, password: pwd });
-      showNotification('Login successful!', 'success');
->>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
+      showNotification('Welcome back!', 'success');
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
@@ -59,7 +47,6 @@ const Login: React.FC = () => {
   };
 
   return (
-<<<<<<< HEAD
     <Box sx={{
       minHeight: '100vh',
       display: 'flex',
@@ -79,76 +66,8 @@ const Login: React.FC = () => {
       }}>
         {/* Logo / Brand */}
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Box sx={{
-            width: 56, height: 56, borderRadius: 2,
-            bgcolor: 'primary.main', display: 'inline-flex',
-            alignItems: 'center', justifyContent: 'center', mb: 2
-          }}>
-            <LockOutlined sx={{ color: '#fff', fontSize: 28 }} />
-=======
-    <Container component="main" maxWidth="sm">
-      <Box
-        sx={{
-          marginTop: 8,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }}
-      >
-        <Paper elevation={3} sx={{ padding: 4, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
-            Restmage
-          </Typography>
-          <Typography variant="h6" align="center" color="textSecondary" gutterBottom>
-            Sign in to your account
-          </Typography>
-          
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          
-          <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email or Username"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              disabled={loading || email.trim().length === 0 || password.length === 0}
-            >
-              {loading ? 'Signing In...' : 'Sign In'}
-            </Button>
-            <Box textAlign="center">
-              <Link to="/register">
-                Don't have an account? Sign Up
-              </Link>
-            </Box>
->>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
+          <Box sx={{ mb: 2 }}>
+            <img src="/logo512.png" alt="Restmage Logo" style={{ width: 64, height: 64, borderRadius: 12 }} />
           </Box>
           <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.5px' }}>
             REST✨MAGE

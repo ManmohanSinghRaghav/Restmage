@@ -18,63 +18,11 @@ router.post('/register', [
 ], register);
 
 router.post('/login', [
-<<<<<<< HEAD
-  body('email').notEmpty().withMessage('Email or username is required'),
-  body('password').notEmpty().withMessage('Password is required')
+  body('email').trim().notEmpty().withMessage('Email or username is required'),
+  body('password').trim().notEmpty().withMessage('Password is required')
 ], login);
 
 router.get('/me', auth, getMe);
-=======
-  body('email').trim().notEmpty().withMessage('Email or username is required'),
-  body('password').trim().notEmpty().withMessage('Password is required')
-], async (req, res) => {
-  try {
-    if (!validateRequest(req, res)) return;
-
-    const { email: identifier, password } = req.body;
-
-    // Determine whether the identifier looks like an email or a username
-    const isEmail = typeof identifier === 'string' && identifier.includes('@');
-    // If an email is provided, compare using lowercase; usernames are used as-is
-    const query = isEmail
-      ? { email: identifier.toLowerCase() }
-      : { username: identifier };
-
-    const user = await User.findOne(query);
-    if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    const isPasswordCorrect = await user.comparePassword(password);
-    if (!isPasswordCorrect) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    user.lastLogin = new Date();
-    await user.save();
-
-    const token = generateAuthToken(user._id, user.email);
-
-    res.json({
-      message: 'Login successful',
-      token,
-      user: user.toJSON()
-    });
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login' });
-  }
-});
-
-router.get('/me', auth, async (req, res) => {
-  try {
-    res.json(req.user);
-  } catch (error) {
-    console.error('Get user error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
->>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
 
 router.put('/profile', auth, [
   body('username').optional().isLength({ min: USERNAME_MIN, max: USERNAME_MAX }).matches(USERNAME_PATTERN),

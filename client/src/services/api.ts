@@ -336,4 +336,11 @@ export const chatbotAPI = {
   }
 };
 
+export const aiAPI = {
+  generateFloorplan: async (params: { width: number, height: number, rooms?: string, style?: string }): Promise<any> => {
+    const response = await api.post('/ai/generate-floorplan', params);
+    return response.data;
+  }
+};
+
 export default api;

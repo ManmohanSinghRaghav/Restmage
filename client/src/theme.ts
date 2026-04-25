@@ -12,7 +12,7 @@ const typography: ThemeOptions['typography'] = {
   button: { textTransform: 'none', fontWeight: 600 },
 };
 
-// Common component overrides for a premium feel
+// Common component overrides for a  feel
 const commonComponents: ThemeOptions['components'] = {
   MuiButton: {
     styleOverrides: {
@@ -76,7 +76,7 @@ const themes: Record<ThemeName, ThemeOptions> = {
       },
     },
   },
-  
+
   midnight: {
     palette: {
       mode: 'dark',
@@ -179,9 +179,18 @@ const themes: Record<ThemeName, ThemeOptions> = {
           },
         },
       },
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: 0,
+            border: '1px solid rgba(240, 0, 255, 0.3)',
+          },
+        },
+      },
       MuiPaper: {
         styleOverrides: {
           root: {
+            borderRadius: 0,
             border: '1px solid rgba(240, 0, 255, 0.3)',
             boxShadow: '0 0 15px rgba(240, 0, 255, 0.15)',
             position: 'relative',
