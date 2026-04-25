@@ -3,6 +3,7 @@ const { auth } = require('../middleware/auth');
 const { generateFloorPlan } = require('../services/geminiFloorPlan');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { env } = require('process');
+const mongoose = require('mongoose');
 const FloorPlan = require('../models/FloorPlan');
 
 const router = express.Router();
@@ -379,7 +380,13 @@ router.get('/list', auth, async (req, res) => {
     const query = { createdBy: req.user._id };
     
     if (projectId) {
-      query.project = projectId;
+      if (typeof projectId !== 'string' || !mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid projectId'
+        });
+      }
+      query.project = { $eq: projectId };
     }
 
     const floorPlans = await FloorPlan.find(query)
