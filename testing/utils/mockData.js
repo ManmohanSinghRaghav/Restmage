@@ -3,6 +3,8 @@
  * Provides consistent test data for backend and frontend tests
  */
 
+const crypto = require('crypto');
+
 /**
  * Generate mock project data
  * @param {Object} overrides - Optional field overrides
@@ -170,7 +172,7 @@ function generateMockCostEstimate(projectId, overrides = {}) {
  * @returns {Object} Mock user data
  */
 function generateMockUser(overrides = {}) {
-  const randomId = Math.floor(Math.random() * 10000);
+  const randomId = crypto.randomInt(0, 10000);
   return {
     username: `testuser${randomId}`,
     email: `testuser${randomId}@test.com`,
