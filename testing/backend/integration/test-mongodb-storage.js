@@ -1,6 +1,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const axios = require('axios');
+const crypto = require('crypto');
 
 const BASE_URL = 'http://localhost:5000/api';
 
@@ -23,7 +24,7 @@ async function checkProjectStorage() {
 
     // 2. Register/Login user
     console.log('\n2️⃣  Authenticating user...');
-    const randomId = Math.floor(Math.random() * 10000);
+    const randomId = crypto.randomInt(0, 10000);
     const testUser = {
       username: `testuser${randomId}`,
       email: `test${randomId}@example.com`,
