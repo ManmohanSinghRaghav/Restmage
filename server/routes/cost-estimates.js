@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose');
 const { auth } = require('../middleware/auth');
 const CostEstimate = require('../models/CostEstimate');
 const FloorPlan = require('../models/FloorPlan');
@@ -323,6 +324,13 @@ router.post('/calculate', auth, async (req, res) => {
 
     // If projectId provided, check access and fetch details
     if (projectId) {
+      if (typeof projectId !== 'string' || !mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid projectId'
+        });
+      }
+
       project = await Project.findById(projectId);
       
       if (!project) {
@@ -347,6 +355,12 @@ router.post('/calculate', auth, async (req, res) => {
 
       // Try to get floor plan
       if (floorPlanId) {
+        if (typeof floorPlanId !== 'string' || !mongoose.Types.ObjectId.isValid(floorPlanId)) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid floorPlanId'
+          });
+        }
         floorPlan = await FloorPlan.findById(floorPlanId);
       } else if (project.activeFloorPlan) {
         floorPlan = await FloorPlan.findById(project.activeFloorPlan);
