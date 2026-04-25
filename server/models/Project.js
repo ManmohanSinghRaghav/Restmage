@@ -78,91 +78,53 @@ const projectSchema = new mongoose.Schema({
         min: 0
       },
       unit: String,
-      pricePerUnit: {
-        type: Number,
-        min: 0
-      }
+      pricePerUnit: Number
     }]
   },
-  // Map/Floorplan data
-  mapData: {
-    bounds: {
-      type: [[Number]], // Array of coordinate pairs defining bounds
-      default: []
-    },
-    layers: [{
-      id: String,
-      name: String,
-      type: {
-        type: String,
-        enum: ['marker', 'polygon', 'line', 'circle']
-      },
-      data: mongoose.Schema.Types.Mixed,
-      style: mongoose.Schema.Types.Mixed,
-      visible: {
-        type: Boolean,
-        default: true
-      }
-    }],
-    center: {
-      lat: {
-        type: Number,
-        default: 40.7128
-      },
-      lng: {
-        type: Number,
-        default: -74.0060
-      }
-    },
-    zoom: {
-      type: Number,
-      default: 13
-    }
-  },
-  // Cost estimation
+
+  // Cost Estimation (Embedded)
   costEstimation: {
-    materials: {
-      type: Number,
-      default: 0
-    },
-    labor: {
-      type: Number,
-      default: 0
-    },
-    permits: {
-      type: Number,
-      default: 0
-    },
-    equipment: {
-      type: Number,
-      default: 0
-    },
-    total: {
-      type: Number,
-      default: 0
-    },
-    currency: {
-      type: String,
-      default: 'USD'
-    },
-    lastCalculated: Date,
+    materials: { type: Number, default: 0 },
+    labor: { type: Number, default: 0 },
+    permits: { type: Number, default: 0 },
+    equipment: { type: Number, default: 0 },
+    total: { type: Number, default: 0 },
     breakdown: [{
       category: String,
       item: String,
       quantity: Number,
       unitCost: Number,
       totalCost: Number
-    }]
+    }],
+    lastCalculated: Date
   },
+
+  activeFloorPlan: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'FloorPlan'
+  },
+
+  activeCostEstimate: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CostEstimate'
+  },
+
+  activePricePrediction: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'PricePrediction'
+  },
+
   status: {
     type: String,
     enum: ['draft', 'in-progress', 'completed', 'archived'],
     default: 'draft'
   },
+
   isPublic: {
     type: Boolean,
     default: false
   },
+
   version: {
     type: Number,
     default: 1
@@ -175,11 +137,36 @@ const projectSchema = new mongoose.Schema({
 projectSchema.index({ 'propertyDetails.location.coordinates': '2dsphere' });
 
 // Index for text search
-projectSchema.index({ 
-  name: 'text', 
-  description: 'text', 
+projectSchema.index({
+  name: 'text',
+  description: 'text',
   'propertyDetails.location.address': 'text',
   'propertyDetails.location.city': 'text'
 });
+
+// Virtual populate for floor plans
+projectSchema.virtual('floorPlans', {
+  ref: 'FloorPlan',
+  localField: '_id',
+  foreignField: 'project'
+});
+
+// Virtual populate for cost estimates
+projectSchema.virtual('costEstimates', {
+  ref: 'CostEstimate',
+  localField: '_id',
+  foreignField: 'project'
+});
+
+// Virtual populate for price predictions
+projectSchema.virtual('pricePredictions', {
+  ref: 'PricePrediction',
+  localField: '_id',
+  foreignField: 'project'
+});
+
+// Ensure virtuals are included in JSON output
+projectSchema.set('toJSON', { virtuals: true });
+projectSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Project', projectSchema);

@@ -38,22 +38,22 @@ const LABOR_RATES = {
 function calculateBasicCosts(propertyDetails) {
   const { dimensions, type, materials = [] } = propertyDetails;
   const { length, width, height } = dimensions;
-  
+
   const squareFootage = length * width;
   const volume = squareFootage * height;
-  
+
   let materialsCost = 0;
   let laborCost = 0;
   const breakdown = [];
 
   // Calculate materials cost
   materials.forEach(material => {
-    const materialInfo = MATERIAL_PRICES[material.type.toLowerCase()] || 
+    const materialInfo = MATERIAL_PRICES[material.type.toLowerCase()] ||
       { pricePerUnit: material.pricePerUnit || 0, unit: material.unit };
-    
+
     const cost = material.quantity * materialInfo.pricePerUnit;
     materialsCost += cost;
-    
+
     breakdown.push({
       category: 'Materials',
       item: material.type,
@@ -72,7 +72,7 @@ function calculateBasicCosts(propertyDetails) {
   };
 
   laborCost = squareFootage * (laborMultiplier[type] || 40);
-  
+
   breakdown.push({
     category: 'Labor',
     item: 'Construction Labor',
@@ -83,7 +83,7 @@ function calculateBasicCosts(propertyDetails) {
 
   // Permits and fees (approximate 3-5% of construction cost)
   const permitsCost = (materialsCost + laborCost) * 0.04;
-  
+
   breakdown.push({
     category: 'Permits',
     item: 'Building Permits & Fees',
@@ -94,7 +94,7 @@ function calculateBasicCosts(propertyDetails) {
 
   // Equipment rental (approximate 8-12% of labor cost)
   const equipmentCost = laborCost * 0.10;
-  
+
   breakdown.push({
     category: 'Equipment',
     item: 'Equipment Rental',
@@ -149,10 +149,17 @@ router.post('/:projectId/calculate', auth, validateObjectId('projectId'), async 
     }
 
     const costEstimation = calculateBasicCosts(project.propertyDetails);
-    
+
+    console.log('Calculated cost estimation:', JSON.stringify(costEstimation, null, 2));
+
     // Update project with new cost estimation
     project.costEstimation = costEstimation;
-    await project.save();
+
+    // Mark the field as modified to ensure Mongoose saves it
+    project.markModified('costEstimation');
+
+    const savedProject = await project.save();
+    console.log('Project saved with cost estimation. New cost total:', savedProject.costEstimation?.total);
 
     // Emit real-time update via WebSocket
     const io = req.app.get('io');
@@ -207,9 +214,9 @@ router.post('/materials/update', auth, async (req, res) => {
   try {
     // This would integrate with external APIs like material suppliers
     // For now, we'll simulate an update
-    
+
     const updatedPrices = { ...MATERIAL_PRICES };
-    
+
     // Simulate price fluctuations (±5%)
     Object.keys(updatedPrices).forEach(material => {
       const fluctuation = (Math.random() - 0.5) * 0.1; // ±5%
@@ -232,7 +239,7 @@ router.post('/materials/update', auth, async (req, res) => {
 router.get('/market/:zipCode', auth, async (req, res) => {
   try {
     const { zipCode } = req.params;
-    
+
     // This would integrate with Zillow API or similar
     // For now, we'll return simulated data
     const marketData = {

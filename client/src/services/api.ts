@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { User, Project, LoginCredentials, RegisterData } from '../types';
+import { User, Project, LoginCredentials, RegisterData, CostEstimate } from '../types';
+import { FloorPlan, FloorPlanInputs } from '../types/floorPlan.types';
 
 // Build a smart default API base URL so the app works on localhost and LAN IPs
 // without additional configuration. You can still override it with
@@ -8,7 +9,11 @@ const getDefaultApiBaseUrl = (): string => {
   try {
     const win: any = (typeof window !== 'undefined') ? window : undefined;
     const protocol = win?.location?.protocol || 'http:';
-    const hostname = win?.location?.hostname || 'localhost';
+    // Normalize 127.0.0.1 to localhost to avoid CORS issues
+    let hostname = win?.location?.hostname || 'localhost';
+    if (hostname === '127.0.0.1') {
+      hostname = 'localhost';
+    }
     const port = process.env.REACT_APP_API_PORT || '5000';
     return `${protocol}//${hostname}:${port}/api`;
   } catch {
@@ -132,7 +137,12 @@ export const projectsAPI = {
     total: number;
   }> => {
     const response = await api.get('/projects', { params });
-    return response.data;
+    return {
+      projects: response.data?.projects || [],
+      totalPages: response.data?.totalPages || 0,
+      currentPage: response.data?.currentPage || 1,
+      total: response.data?.total || 0
+    };
   },
 
   getProject: async (id: string): Promise<Project> => {
@@ -227,6 +237,103 @@ export const exportAPI = {
     const response = await api.get(`/export/${projectId}/json`, { responseType: 'blob' });
     return response.data;
   },
+};
+
+export const floorPlansAPI = {
+  list: async (projectId?: string): Promise<FloorPlan[]> => {
+    const params = projectId ? { projectId } : {};
+    const response = await api.get('/floorplan/list', { params });
+    return response.data?.floorPlans || [];
+  },
+
+  get: async (id: string): Promise<FloorPlan> => {
+    const response = await api.get(`/floorplan/${id}`);
+    return response.data.floorPlan;
+  },
+
+  generateAI: async (projectId: string, inputs: FloorPlanInputs): Promise<FloorPlan> => {
+    const response = await api.post('/floorplan/generate-ai', { projectId, inputs });
+    return response.data.floorPlan;
+  },
+
+  create: async (data: Partial<FloorPlan>): Promise<FloorPlan> => {
+    const response = await api.post('/floorplan/save', data);
+    return response.data.floorPlan || response.data;
+  },
+
+  update: async (id: string, data: Partial<FloorPlan>): Promise<FloorPlan> => {
+    const response = await api.put(`/floorplan/${id}`, data);
+    return response.data.floorPlan;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/floorplan/${id}`);
+  },
+
+  activate: async (id: string): Promise<FloorPlan> => {
+    const response = await api.post(`/floorplan/${id}/activate`);
+    return response.data.floorPlan;
+  },
+};
+
+export const costEstimatesAPI = {
+  list: async (projectId?: string): Promise<CostEstimate[]> => {
+    const params = projectId ? { project: projectId } : {};
+    const response = await api.get('/cost-estimates', { params });
+    return response.data?.costEstimates || [];
+  },
+
+  get: async (id: string): Promise<CostEstimate> => {
+    const response = await api.get(`/cost-estimates/${id}`);
+    return response.data.costEstimate;
+  },
+
+  calculate: async (projectId: string, floorPlanId?: string, inputs?: any): Promise<CostEstimate> => {
+    const response = await api.post('/cost-estimates/calculate', {
+      projectId,
+      floorPlanId,
+      inputs,
+    });
+    return response.data.costEstimate;
+  },
+
+  create: async (data: Partial<CostEstimate>): Promise<CostEstimate> => {
+    const response = await api.post('/cost-estimates', data);
+    return response.data.costEstimate;
+  },
+
+  update: async (id: string, data: Partial<CostEstimate>): Promise<CostEstimate> => {
+    const response = await api.put(`/cost-estimates/${id}`, data);
+    return response.data.costEstimate;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/cost-estimates/${id}`);
+  },
+
+  activate: async (id: string): Promise<CostEstimate> => {
+    const response = await api.post(`/cost-estimates/${id}/activate`);
+    return response.data.costEstimate;
+  },
+};
+
+export const chatbotAPI = {
+  sendMessage: async (message: string, conversationId?: string): Promise<{
+    success: boolean;
+    conversationId: string;
+    userMessage: string;
+    botResponse: string;
+    source: string;
+    timestamp: string;
+  }> => {
+    const response = await api.post('/chatbot/message', { message, conversationId });
+    return response.data;
+  },
+
+  getHistory: async (conversationId: string): Promise<any[]> => {
+    const response = await api.get(`/chatbot/history/${conversationId}`);
+    return response.data.messages;
+  }
 };
 
 export default api;

@@ -1,7 +1,18 @@
 const express = require('express');
+const axios = require('axios');
 const { auth } = require('../middleware/auth');
+const OpenAI = require('openai');
+const Message = require('../models/Message');
 
 const router = express.Router();
+
+// Initialize OpenAI conditionally
+let openai;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+}
 
 /**
  * Chatbot for Real Estate Assistance
@@ -9,7 +20,7 @@ const router = express.Router();
  * Can be enhanced with Hugging Face API for more advanced NLP
  */
 
-// Knowledge base for real estate chatbot
+// Knowledge base for real estate chatbot (Fallback)
 const KNOWLEDGE_BASE = {
   greetings: [
     'Hello! I\'m your real estate assistant. How can I help you today?',
@@ -62,26 +73,39 @@ function generateChatbotResponse(message) {
     return getRandomResponse(KNOWLEDGE_BASE.greetings);
   }
 
-  // Check each knowledge category
-  for (const [category, data] of Object.entries(KNOWLEDGE_BASE)) {
-    if (category === 'greetings') continue;
-
-    const matched = data.keywords.some(keyword => lowerMessage.includes(keyword));
-    if (matched) {
-      return getRandomResponse(data.responses);
+  // Check for floor plan related queries
+  for (const keyword of KNOWLEDGE_BASE.floorPlan.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.floorPlan.responses);
     }
   }
 
-  // Extract numbers and room types from message
-  const roomMatch = lowerMessage.match(/(\d+)\s*(bedroom|bathroom|kitchen|living room|dining room)/g);
-  if (roomMatch) {
-    return `I see you're interested in a property with ${roomMatch.join(', ')}. To generate a detailed floor plan, please provide the property dimensions (width x height in feet). For example: "50 feet by 40 feet" or "50x40".`;
+  // Check for pricing related queries
+  for (const keyword of KNOWLEDGE_BASE.pricing.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.pricing.responses);
+    }
   }
 
-  // Extract dimensions
-  const dimensionMatch = lowerMessage.match(/(\d+)\s*(?:x|by|×)\s*(\d+)/);
-  if (dimensionMatch) {
-    return `Perfect! For a ${dimensionMatch[1]}x${dimensionMatch[2]} feet property, I can create a floor plan. How many bedrooms, bathrooms, and other rooms would you like?`;
+  // Check for room size queries
+  for (const keyword of KNOWLEDGE_BASE.roomSizes.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.roomSizes.responses);
+    }
+  }
+
+  // Check for feature/capability inquiries
+  for (const keyword of KNOWLEDGE_BASE.features.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.features.responses);
+    }
+  }
+
+  // Check for tips and advice
+  for (const keyword of KNOWLEDGE_BASE.tips.keywords) {
+    if (lowerMessage.includes(keyword)) {
+      return getRandomResponse(KNOWLEDGE_BASE.tips.responses);
+    }
   }
 
   // Default response
@@ -93,6 +117,32 @@ function generateChatbotResponse(message) {
 • Design tips and advice
 
 What would you like to know?`;
+}
+
+/**
+ * Generate response using OpenAI GPT
+ */
+async function generateAIResponse(message) {
+  if (!openai) {
+    throw new Error('OpenAI API key not configured');
+  }
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a helpful and knowledgeable Real Estate Assistant for the Restmage application. You help users with floor plan designs, property price estimation, and general real estate advice. Be professional, concise, and friendly. If asked about floor plans, ask for dimensions and room requirements. If asked about price, ask for location, area, and amenities." 
+        },
+        { role: "user", content: message }
+      ],
+      model: "gpt-3.5-turbo",
+    });
+
+    return completion.choices[0].message.content;
+  } catch (error) {
+    console.error("OpenAI API Error:", error);
+    throw error;
+  }
 }
 
 function getRandomResponse(responses) {
@@ -111,15 +161,49 @@ router.post('/message', auth, async (req, res) => {
       return res.status(400).json({ message: 'Message is required' });
     }
 
-    // Generate response
-    const response = generateChatbotResponse(message);
+    let response;
+    let source = 'rule-based';
+
+    // Try OpenAI if API key is present
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        response = await generateAIResponse(message);
+        source = 'openai';
+      } catch (err) {
+        console.warn('OpenAI failed, falling back to rules:', err.message);
+        response = generateChatbotResponse(message);
+      }
+    } else {
+      response = generateChatbotResponse(message);
+    }
+
+    // Save user message
+    const userMsg = new Message({
+      conversationId: conversationId || `conv_${Date.now()}`,
+      user: req.user._id,
+      role: 'user',
+      content: message,
+      source: 'user'
+    });
+    await userMsg.save();
+
+    // Save bot response
+    const botMsg = new Message({
+      conversationId: userMsg.conversationId,
+      user: req.user._id,
+      role: 'assistant',
+      content: response,
+      source: source
+    });
+    await botMsg.save();
 
     res.json({
       success: true,
-      conversationId: conversationId || `conv_${Date.now()}`,
+      conversationId: userMsg.conversationId,
       userMessage: message,
       botResponse: response,
-      timestamp: new Date().toISOString()
+      source,
+      timestamp: botMsg.createdAt
     });
   } catch (error) {
     console.error('Chatbot error:', error);
@@ -209,6 +293,27 @@ router.get('/suggestions', (req, res) => {
   ];
 
   res.json({ suggestions });
+});
+
+/**
+ * GET /api/chatbot/history/:conversationId
+ * Get chat history
+ */
+router.get('/history/:conversationId', auth, async (req, res) => {
+  try {
+    const messages = await Message.find({
+      conversationId: req.params.conversationId,
+      user: req.user._id
+    }).sort({ createdAt: 1 });
+
+    res.json({
+      success: true,
+      messages
+    });
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    res.status(500).json({ message: 'Failed to fetch chat history' });
+  }
 });
 
 module.exports = router;

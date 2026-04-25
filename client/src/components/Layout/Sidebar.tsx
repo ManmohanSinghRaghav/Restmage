@@ -12,10 +12,10 @@ import {
 import {
   Dashboard as DashboardIcon,
   Add as AddIcon,
-  Map as MapIcon,
   Home as FloorPlanIcon,
   AttachMoney as PriceIcon,
   Chat as ChatIcon,
+  Edit as EditorIcon,
 } from '@mui/icons-material';
 
 const DRAWER_WIDTH = 240;
@@ -41,6 +41,11 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       path: '/floorplan',
     },
     {
+      text: 'Floor Plan Editor',
+      icon: <EditorIcon />,
+      path: '/map-editor',
+    },
+    {
       text: 'Price Prediction',
       icon: <PriceIcon />,
       path: '/price-prediction',
@@ -51,14 +56,9 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       path: '/chatbot',
     },
     {
-      text: 'Map View',
-      icon: <MapIcon />,
-      path: '/maps',
-    },
-    {
       text: 'New Project',
       icon: <AddIcon />,
-      path: '/project/new',
+      path: '/project/new/edit',
     },
   ];
 
