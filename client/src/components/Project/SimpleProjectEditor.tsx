@@ -32,9 +32,8 @@ import {
   AttachMoney as MoneyIcon,
   Architecture as ArchIcon,
 } from '@mui/icons-material';
-import InteractiveMap from '../Map/InteractiveMap';
 import { Project } from '../../types';
-import { projectsAPI, costAPI } from '../../services/api';
+import { projectsAPI } from '../../services/api';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useTheme } from '@mui/material/styles';
 
@@ -42,15 +41,23 @@ const SimpleProjectEditor: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showNotification } = useNotification();
+<<<<<<< HEAD
   const theme = useTheme();
   
+=======
+
+>>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
   const isNewProject = id === 'new';
-  
+
   const [loading, setLoading] = useState(!isNewProject);
   const [saving, setSaving] = useState(false);
+<<<<<<< HEAD
   const [calculating, setCalculating] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'materials' | 'cost'>('info');
   
+=======
+
+>>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
   const [project, setProject] = useState<Partial<Project>>({
     name: '',
     description: '',
@@ -83,17 +90,29 @@ const SimpleProjectEditor: React.FC = () => {
   });
 
   const loadProject = useCallback(async () => {
+    // Safety check: don't try to load "new" projects
+    if (isNewProject || id === 'new') {
+      console.log('📝 Creating new project - skipping load');
+      return;
+    }
+
     try {
       setLoading(true);
+      console.log('📥 Loading project:', id);
       const projectData = await projectsAPI.getProject(id!);
       setProject(projectData);
-    } catch (error) {
-      showNotification('Failed to load project', 'error');
+      console.log('✅ Project loaded successfully:', projectData.name);
+    } catch (error: any) {
+      console.error('❌ Failed to load project:', error);
+      showNotification(
+        `Failed to load project: ${error.response?.data?.message || error.message || 'Unknown error'}`,
+        'error'
+      );
       navigate('/dashboard');
     } finally {
       setLoading(false);
     }
-  }, [id, showNotification, navigate]);
+  }, [id, isNewProject, showNotification, navigate]);
 
   useEffect(() => {
     if (!isNewProject) {
@@ -104,23 +123,41 @@ const SimpleProjectEditor: React.FC = () => {
   const handleSave = async () => {
     try {
       setSaving(true);
+<<<<<<< HEAD
+=======
+
+>>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
       if (isNewProject) {
+        console.log('💾 Creating new project:', project.name);
+        console.log('Project data:', JSON.stringify(project, null, 2));
         const savedProject = await projectsAPI.createProject(project);
         setProject(savedProject);
+        console.log('✅ Project created:', savedProject._id);
         showNotification('Project created successfully', 'success');
-        navigate(`/project/${savedProject._id}/edit`);
+        // Navigate to floor plan editor
+        navigate(`/floorplan/${savedProject._id}`);
       } else {
+        console.log('💾 Updating project:', project._id);
         const updatedProject = await projectsAPI.updateProject(project._id!, project);
         setProject(updatedProject);
+        console.log('✅ Project updated:', updatedProject._id);
         showNotification('Project saved successfully', 'success');
+        // Navigate to floor plan editor
+        navigate(`/floorplan/${updatedProject._id}`);
       }
-    } catch (error) {
-      showNotification('Failed to save project', 'error');
+    } catch (error: any) {
+      console.error('❌ Save failed:', error);
+      const errorMessage = error.response?.data?.message
+        || error.response?.data?.errors?.[0]?.msg
+        || error.message
+        || 'Unknown error';
+      showNotification(`Failed to save project: ${errorMessage}`, 'error');
     } finally {
       setSaving(false);
     }
   };
 
+<<<<<<< HEAD
   const handleCalculateCost = async () => {
     if (!project._id) {
       showNotification('Please save the project first', 'warning');
@@ -139,6 +176,8 @@ const SimpleProjectEditor: React.FC = () => {
     }
   };
 
+=======
+>>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
   const handleAddMaterial = () => {
     if (newMaterial.type && newMaterial.quantity > 0) {
       setProject(prev => ({
@@ -209,7 +248,11 @@ const SimpleProjectEditor: React.FC = () => {
               }
             }}
           >
+<<<<<<< HEAD
             {saving ? 'Saving...' : 'Save Workspace'}
+=======
+            {saving ? 'Saving...' : 'Next: Floor Plan'}
+>>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
           </Button>
         </Box>
       </Box>
@@ -333,6 +376,7 @@ const SimpleProjectEditor: React.FC = () => {
                 </Button>
               </Paper>
 
+<<<<<<< HEAD
               <Typography variant="subtitle2" sx={{ mb: 1 }}>Current Materials</Typography>
               {project.propertyDetails?.materials?.map((mat, idx) => (
                 <Paper key={idx} variant="outlined" sx={{ p: 1.5, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -400,6 +444,144 @@ const SimpleProjectEditor: React.FC = () => {
           </Fade>
 
         </Box>
+=======
+        {/* Price Prediction / Market Value */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">Market Price Prediction</Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<CalculateIcon />}
+              onClick={() => navigate(`/price-prediction/${project._id}`)}
+            >
+              {project.activePricePrediction ? 'Update Prediction' : 'Predict Price'}
+            </Button>
+          </Box>
+
+          {project.activePricePrediction ? (
+            <Box sx={{ display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
+              <Box>
+                <Typography variant="body2" color="textSecondary">Estimated Price</Typography>
+                <Typography variant="h4" color="primary">
+                  {/* Format as Lakhs/Crores if possible, or just locale string */}
+                  {project.activePricePrediction.estimatedPrice >= 100000 ?
+                    (project.activePricePrediction.estimatedPrice >= 10000000 ?
+                      `₹${(project.activePricePrediction.estimatedPrice / 10000000).toFixed(2)} Cr` :
+                      `₹${(project.activePricePrediction.estimatedPrice / 100000).toFixed(2)} L`)
+                    : `₹${project.activePricePrediction.estimatedPrice.toLocaleString()}`}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="body2" color="textSecondary">Confidence</Typography>
+                <Typography variant="h6">
+                  {(project.activePricePrediction.confidence * 100).toFixed(0)}%
+                </Typography>
+              </Box>
+            </Box>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 2 }}>
+              <Typography variant="body1" color="textSecondary" gutterBottom>
+                No price prediction generated yet.
+              </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => navigate(`/price-prediction/${project._id}`)}
+                sx={{ mt: 1 }}
+              >
+                Get Market Estimate
+              </Button>
+            </Box>
+          )}
+        </Paper>
+
+        {/* Materials */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>Materials</Typography>
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'end' }}>
+            <TextField
+              label="Material Type"
+              value={newMaterial.type}
+              onChange={(e) => setNewMaterial(prev => ({ ...prev, type: e.target.value }))}
+            />
+            <TextField
+              label="Quantity"
+              type="number"
+              value={newMaterial.quantity}
+              onChange={(e) => setNewMaterial(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 0 }))}
+            />
+            <TextField
+              label="Unit"
+              value={newMaterial.unit}
+              onChange={(e) => setNewMaterial(prev => ({ ...prev, unit: e.target.value }))}
+            />
+            <TextField
+              label="Price/Unit"
+              type="number"
+              value={newMaterial.pricePerUnit}
+              onChange={(e) => setNewMaterial(prev => ({ ...prev, pricePerUnit: parseFloat(e.target.value) || 0 }))}
+            />
+            <IconButton
+              color="primary"
+              onClick={handleAddMaterial}
+              disabled={!newMaterial.type || newMaterial.quantity <= 0}
+            >
+              <AddIcon />
+            </IconButton>
+          </Box>
+
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Material</TableCell>
+                  <TableCell>Quantity</TableCell>
+                  <TableCell>Price/Unit</TableCell>
+                  <TableCell>Total</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {project.propertyDetails?.materials?.map((material, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{material.type}</TableCell>
+                    <TableCell>{material.quantity} {material.unit}</TableCell>
+                    <TableCell>${(material.pricePerUnit || 0).toFixed(2)}</TableCell>
+                    <TableCell>${((material.pricePerUnit || 0) * material.quantity).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => {
+                          setProject(prev => ({
+                            ...prev,
+                            propertyDetails: {
+                              ...prev.propertyDetails!,
+                              materials: prev.propertyDetails!.materials.filter((_, i) => i !== index)
+                            }
+                          }));
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {(!project.propertyDetails?.materials || project.propertyDetails.materials.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center">No materials added yet</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
+
+        {/* Floor Plan Editor - REMOVED */}
+        {/* The floor plan editor has been moved to a separate step in the workflow */}
+>>>>>>> 93af25bc042d533010d982d8d0fd4e6fa273aca1
       </Box>
     </Box>
   );

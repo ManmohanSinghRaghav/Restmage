@@ -16,6 +16,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import SimpleProjectView from './components/Project/SimpleProjectView';
 import SimpleProjectEditor from './components/Project/SimpleProjectEditor';
 import FloorPlanGenerator from './components/FloorPlan/FloorPlanGenerator';
+import MapEditor from './components/MapEditor/MapEditor';
 import PricePrediction from './components/PricePrediction/PricePrediction';
 import Chatbot from './components/Chatbot/Chatbot';
 
@@ -86,7 +87,71 @@ const AuthenticatedRoutes: React.FC = () => {
             } 
           />
           <Route 
+            path="/floorplan/:projectId" 
+            element={
+              <ProtectedRoute>
+                <FloorPlanGenerator />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/floorplans/:id/edit" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/map-editor" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/map-editor/:projectId" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/editor" 
+            element={
+              <ProtectedRoute>
+                <MapEditor />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/price-prediction" 
+            element={
+              <ProtectedRoute>
+                <PricePrediction />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/price-prediction/:projectId" 
+            element={
+              <ProtectedRoute>
+                <PricePrediction />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/price-prediction/:projectId/:floorPlanId" 
+            element={
+              <ProtectedRoute>
+                <PricePrediction />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/cost-estimates/:id/edit" 
             element={
               <ProtectedRoute>
                 <PricePrediction />
