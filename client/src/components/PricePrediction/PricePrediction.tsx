@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -11,82 +12,196 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Chip,
   Alert,
+  Autocomplete,
+  CircularProgress,
+  Divider,
   Checkbox,
-  FormControlLabel,
-  Divider
+  FormControlLabel
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
-  TrendingUp as TrendIcon
+  TrendingUp as TrendIcon,
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
+import { projectsAPI, floorPlansAPI } from '../../services/api';
 import api from '../../services/api';
+import { Project } from '../../types';
+import { FloorPlan } from '../../types/floorPlan.types';
 
-interface PricePredictionResult {
-  estimatedPrice: number;
-  priceRange: {
-    min: number;
-    max: number;
-  };
-  confidence: number;
-  breakdown: {
-    basePrice: number;
-    areaContribution: number;
-    bedroomContribution: number;
-    bathroomContribution: number;
-    ageAdjustment: number;
-    locationPremium: number;
-    conditionAdjustment: number;
-  };
+interface CostEstimateComponentProps {
+  projectId?: string;
+  floorPlanId?: string;
 }
 
-const PricePrediction: React.FC = () => {
+const AMENITIES = ['garage', 'garden', 'pool', 'basement', 'balcony'];
+
+const PricePrediction: React.FC<CostEstimateComponentProps> = ({
+  projectId: propProjectId,
+  floorPlanId: propFloorPlanId
+}) => {
+  const navigate = useNavigate();
+  const { projectId: urlProjectId, floorPlanId: urlFloorPlanId } = useParams<{
+    projectId: string;
+    floorPlanId: string;
+  }>();
+
+  const projectId = propProjectId || urlProjectId;
+  const floorPlanId = propFloorPlanId || urlFloorPlanId;
+
+  // Form Data for ML Prediction
   const [formData, setFormData] = useState({
     area: 1500,
     bedrooms: 3,
     bathrooms: 2,
     age: 5,
-    location: 'suburban',
-    condition: 'good',
+    location: 'Suburban',
+    condition: 'Good',
     amenities: [] as string[]
   });
 
-  const [prediction, setPrediction] = useState<PricePredictionResult | null>(null);
+  // Project/Floor plan selection for standalone usage
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [selectedFloorPlan, setSelectedFloorPlan] = useState<FloorPlan | null>(null);
+  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
+  const [availableFloorPlans, setAvailableFloorPlans] = useState<FloorPlan[]>([]);
+  const [projectsLoading, setProjectsLoading] = useState(false);
+  const [floorPlansLoading, setFloorPlansLoading] = useState(false);
+
+  const [prediction, setPrediction] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const AMENITIES = ['garage', 'garden', 'pool', 'basement', 'balcony'];
+  // Load project and floor plan if IDs provided
+  useEffect(() => {
+    if (projectId) {
+      loadProject(projectId);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    if (floorPlanId) {
+      loadFloorPlan(floorPlanId);
+    }
+  }, [floorPlanId]);
+
+  // Search projects for standalone usage
+  useEffect(() => {
+    if (!projectId && projectSearchQuery.length > 0) {
+      searchProjects(projectSearchQuery);
+    }
+  }, [projectSearchQuery, projectId]);
+
+  // Load floor plans when project is selected
+  useEffect(() => {
+    if (selectedProject && !floorPlanId) {
+      loadProjectFloorPlans(selectedProject._id);
+    }
+  }, [selectedProject, floorPlanId]);
+
+  const loadProject = async (id: string) => {
+    try {
+      const project = await projectsAPI.getProject(id);
+      setSelectedProject(project);
+      // Pre-fill inputs from project
+      if (project.propertyDetails?.dimensions) {
+        const dims = project.propertyDetails.dimensions;
+        if (dims.unit === 'feet') {
+          setFormData(prev => ({ ...prev, area: dims.length * dims.width }));
+        }
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to load project');
+    }
+  };
+
+  const loadFloorPlan = async (id: string) => {
+    try {
+      const floorPlan = await floorPlansAPI.get(id);
+      setSelectedFloorPlan(floorPlan);
+      // Pre-fill inputs from floor plan
+      if (floorPlan && floorPlan.plot_summary) {
+        const plotArea = floorPlan.plot_summary.plot_width_ft * floorPlan.plot_summary.plot_length_ft;
+        setFormData(prev => ({ ...prev, area: plotArea }));
+      }
+    } catch (err: any) {
+      console.error('Failed to load floor plan:', err);
+      // If it's a 404 or invalid ID, just ignore and let user select manually or proceed without it
+      if (err.response?.status === 404 || err.response?.status === 400) {
+        // Don't show error to user, just log it
+        console.log('Floor plan not found or invalid ID, proceeding without it');
+      } else {
+        setError(err.response?.data?.message || 'Failed to load floor plan');
+      }
+    }
+  };
+
+  const searchProjects = async (search: string) => {
+    setProjectsLoading(true);
+    try {
+      const response = await projectsAPI.getProjects({ search, limit: 20 });
+      setAvailableProjects(response.projects);
+    } catch (err) {
+      console.error('Failed to search projects:', err);
+    } finally {
+      setProjectsLoading(false);
+    }
+  };
+
+  const loadProjectFloorPlans = async (projId: string) => {
+    setFloorPlansLoading(true);
+    try {
+      const floorPlans = await floorPlansAPI.list(projId);
+      setAvailableFloorPlans(floorPlans);
+    } catch (err) {
+      console.error('Failed to load floor plans:', err);
+    } finally {
+      setFloorPlansLoading(false);
+    }
+  };
 
   const handleInputChange = (field: string, value: any) => {
-    setFormData({ ...formData, [field]: value });
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const toggleAmenity = (amenity: string) => {
-    const newAmenities = formData.amenities.includes(amenity)
-      ? formData.amenities.filter((a: string) => a !== amenity)
-      : [...formData.amenities, amenity];
-    setFormData({ ...formData, amenities: newAmenities });
+    setFormData(prev => {
+      const newAmenities = prev.amenities.includes(amenity)
+        ? prev.amenities.filter(a => a !== amenity)
+        : [...prev.amenities, amenity];
+      return { ...prev, amenities: newAmenities };
+    });
   };
 
-  const predictPrice = async () => {
+  const calculatePrice = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await api.post('/price-prediction/predict', formData);
-      setPrediction(response.data.prediction);
+      // Use the new ML-based prediction endpoint
+      const response = await api.post('/price-prediction/ml-predict', formData);
+      if (response.data.success) {
+        setPrediction(response.data.prediction);
+      } else {
+        setError(response.data.message || 'Prediction failed');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to predict price');
+      setError(err.response?.data?.message || 'Failed to calculate price prediction');
     } finally {
       setLoading(false);
     }
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    if (amount >= 10000000) {
+      return `₹${(amount / 10000000).toFixed(2)} Cr`;
+    } else if (amount >= 100000) {
+      return `₹${(amount / 100000).toFixed(2)} L`;
+    }
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(amount);
@@ -98,7 +213,7 @@ const PricePrediction: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
           <MoneyIcon sx={{ fontSize: 40, mr: 2, color: 'primary.main' }} />
           <Typography variant="h4">
-            House Price Prediction
+            Market Price Prediction
           </Typography>
         </Box>
 
@@ -108,6 +223,75 @@ const PricePrediction: React.FC = () => {
           </Alert>
         )}
 
+        {/* Project Selection (only for standalone usage) */}
+        {!projectId && (
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Select Project (Optional)
+            </Typography>
+            <Autocomplete
+              options={availableProjects}
+              getOptionLabel={(option) => option.name}
+              value={selectedProject}
+              onChange={(_, newValue) => {
+                setSelectedProject(newValue);
+                setSelectedFloorPlan(null);
+                if (newValue) loadProjectFloorPlans(newValue._id);
+              }}
+              onInputChange={(_, newInputValue) => setProjectSearchQuery(newInputValue)}
+              loading={projectsLoading}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Search and select project"
+                  placeholder="Type to search projects..."
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {projectsLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+            />
+
+            {selectedProject && (
+              <Autocomplete
+                sx={{ mt: 2 }}
+                options={availableFloorPlans}
+                getOptionLabel={(option) => option.name || 'Unnamed Floor Plan'}
+                value={selectedFloorPlan}
+                onChange={(_, newValue) => {
+                  setSelectedFloorPlan(newValue);
+                  if (newValue) loadFloorPlan(newValue._id);
+                }}
+                loading={floorPlansLoading}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Select Floor Plan (Optional)"
+                    placeholder="Choose a floor plan to auto-fill details"
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {floorPlansLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            )}
+
+            <Divider sx={{ mt: 3 }} />
+          </Box>
+        )}
+
         <Box sx={{ display: 'flex', gap: 3, flexDirection: { xs: 'column', md: 'row' } }}>
           {/* Input Form */}
           <Box sx={{ flex: 1 }}>
@@ -115,58 +299,52 @@ const PricePrediction: React.FC = () => {
               Property Details
             </Typography>
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
               <TextField
                 fullWidth
                 label="Total Area (sq ft)"
                 type="number"
                 value={formData.area}
                 onChange={(e) => handleInputChange('area', Number(e.target.value))}
-                inputProps={{ min: 100, max: 10000 }}
+                inputProps={{ min: 100 }}
               />
-
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Bedrooms"
-                  type="number"
-                  value={formData.bedrooms}
-                  onChange={(e) => handleInputChange('bedrooms', Number(e.target.value))}
-                  inputProps={{ min: 1, max: 10 }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Bathrooms"
-                  type="number"
-                  value={formData.bathrooms}
-                  onChange={(e) => handleInputChange('bathrooms', Number(e.target.value))}
-                  inputProps={{ min: 1, max: 10 }}
-                />
-              </Box>
-
               <TextField
                 fullWidth
-                label="Property Age (years)"
+                label="Age (Years)"
                 type="number"
                 value={formData.age}
                 onChange={(e) => handleInputChange('age', Number(e.target.value))}
-                inputProps={{ min: 0, max: 100 }}
+                inputProps={{ min: 0 }}
               />
-
+              <TextField
+                fullWidth
+                label="Bedrooms"
+                type="number"
+                value={formData.bedrooms}
+                onChange={(e) => handleInputChange('bedrooms', Number(e.target.value))}
+                inputProps={{ min: 0 }}
+              />
+              <TextField
+                fullWidth
+                label="Bathrooms"
+                type="number"
+                value={formData.bathrooms}
+                onChange={(e) => handleInputChange('bathrooms', Number(e.target.value))}
+                inputProps={{ min: 0 }}
+              />
               <FormControl fullWidth>
-                <InputLabel>Location Type</InputLabel>
+                <InputLabel>Location</InputLabel>
                 <Select
                   value={formData.location}
-                  label="Location Type"
+                  label="Location"
                   onChange={(e) => handleInputChange('location', e.target.value)}
                 >
-                  <MenuItem value="urban">Urban</MenuItem>
-                  <MenuItem value="suburban">Suburban</MenuItem>
-                  <MenuItem value="rural">Rural</MenuItem>
+                  <MenuItem value="Urban">Urban</MenuItem>
+                  <MenuItem value="Suburban">Suburban</MenuItem>
+                  <MenuItem value="Rural">Rural</MenuItem>
+                  <MenuItem value="Downtown">Downtown</MenuItem>
                 </Select>
               </FormControl>
-
               <FormControl fullWidth>
                 <InputLabel>Condition</InputLabel>
                 <Select
@@ -174,17 +352,19 @@ const PricePrediction: React.FC = () => {
                   label="Condition"
                   onChange={(e) => handleInputChange('condition', e.target.value)}
                 >
-                  <MenuItem value="excellent">Excellent</MenuItem>
-                  <MenuItem value="good">Good</MenuItem>
-                  <MenuItem value="fair">Fair</MenuItem>
-                  <MenuItem value="poor">Poor</MenuItem>
+                  <MenuItem value="Excellent">Excellent</MenuItem>
+                  <MenuItem value="Good">Good</MenuItem>
+                  <MenuItem value="Fair">Fair</MenuItem>
+                  <MenuItem value="Poor">Poor</MenuItem>
                 </Select>
               </FormControl>
+            </Box>
 
-              <Box>
-                <Typography variant="subtitle1" gutterBottom>
-                  Amenities
-                </Typography>
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle1" gutterBottom>
+                Amenities
+              </Typography>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                 {AMENITIES.map((amenity) => (
                   <FormControlLabel
                     key={amenity}
@@ -205,11 +385,24 @@ const PricePrediction: React.FC = () => {
               size="large"
               fullWidth
               sx={{ mt: 3 }}
-              onClick={predictPrice}
+              onClick={calculatePrice}
               disabled={loading}
             >
               {loading ? 'Calculating...' : 'Predict Price'}
             </Button>
+
+            {projectId && prediction && (
+              <Button
+                variant="outlined"
+                size="large"
+                fullWidth
+                sx={{ mt: 2 }}
+                startIcon={<CheckCircleIcon />}
+                onClick={() => navigate(`/project/${projectId}`)}
+              >
+                Finish & View Project
+              </Button>
+            )}
           </Box>
 
           {/* Results */}
@@ -217,7 +410,7 @@ const PricePrediction: React.FC = () => {
             {prediction ? (
               <>
                 <Typography variant="h6" gutterBottom>
-                  Price Estimate
+                  Price Prediction
                 </Typography>
 
                 <Card sx={{ mb: 2, bgcolor: 'primary.light', color: 'white' }}>
@@ -228,117 +421,60 @@ const PricePrediction: React.FC = () => {
                     <Typography variant="body1" align="center">
                       Estimated Market Value
                     </Typography>
-                    <Divider sx={{ my: 2, bgcolor: 'white', opacity: 0.3 }} />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Box>
-                        <Typography variant="body2">Low Estimate</Typography>
-                        <Typography variant="h6">
-                          {formatCurrency(prediction.priceRange.min)}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="body2">High Estimate</Typography>
-                        <Typography variant="h6">
-                          {formatCurrency(prediction.priceRange.max)}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ mt: 2, textAlign: 'center' }}>
-                      <Chip
-                        label={`${(prediction.confidence * 100).toFixed(0)}% Confidence`}
-                        sx={{ bgcolor: 'white', color: 'primary.main' }}
-                      />
-                    </Box>
+                    <Typography variant="caption" display="block" align="center" sx={{ mt: 1 }}>
+                      Range: {formatCurrency(prediction.priceRange.min)} - {formatCurrency(prediction.priceRange.max)}
+                    </Typography>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Price Breakdown
+                      Value Breakdown
                     </Typography>
 
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Base Price</Typography>
-                        <Typography variant="body2">
-                          {formatCurrency(prediction.breakdown.basePrice)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Area ({formData.area} sq ft)</Typography>
-                        <Typography variant="body2" color="success.main">
-                          +{formatCurrency(prediction.breakdown.areaContribution)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Bedrooms ({formData.bedrooms})</Typography>
-                        <Typography variant="body2" color="success.main">
-                          +{formatCurrency(prediction.breakdown.bedroomContribution)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Bathrooms ({formData.bathrooms})</Typography>
-                        <Typography variant="body2" color="success.main">
-                          +{formatCurrency(prediction.breakdown.bathroomContribution)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Location Premium</Typography>
-                        <Typography variant="body2" color="success.main">
-                          +{formatCurrency(prediction.breakdown.locationPremium)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Condition Adjustment</Typography>
-                        <Typography
-                          variant="body2"
-                          color={prediction.breakdown.conditionAdjustment >= 0 ? 'success.main' : 'error.main'}
-                        >
-                          {prediction.breakdown.conditionAdjustment >= 0 ? '+' : ''}
-                          {formatCurrency(prediction.breakdown.conditionAdjustment)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 1 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <Typography variant="body2">Age Depreciation</Typography>
-                        <Typography variant="body2" color="error.main">
-                          {formatCurrency(prediction.breakdown.ageAdjustment)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    {formData.amenities.length > 0 && (
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="body2" gutterBottom>
-                          Amenities Included:
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {formData.amenities.map((amenity) => (
-                            <Chip key={amenity} label={amenity} size="small" color="primary" />
-                          ))}
+                    {prediction.breakdown && (
+                      <>
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Base Price</Typography>
+                            <Typography variant="body2">
+                              {formatCurrency(prediction.breakdown.basePrice)}
+                            </Typography>
+                          </Box>
                         </Box>
-                      </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Area Value</Typography>
+                            <Typography variant="body2">
+                              {formatCurrency(prediction.breakdown.areaContribution)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Location Premium</Typography>
+                            <Typography variant="body2">
+                              {formatCurrency(prediction.breakdown.locationPremium)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ mb: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2">Condition Adjustment</Typography>
+                            <Typography variant="body2">
+                              {formatCurrency(prediction.breakdown.conditionAdjustment)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </>
                     )}
                   </CardContent>
                 </Card>
+
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  Confidence: {(prediction.confidence * 100).toFixed(0)}%
+                </Alert>
               </>
             ) : (
               <Box
@@ -353,7 +489,7 @@ const PricePrediction: React.FC = () => {
               >
                 <TrendIcon sx={{ fontSize: 100, mb: 2, opacity: 0.3 }} />
                 <Typography variant="h6">
-                  Enter property details to get price estimate
+                  Enter details to predict market price
                 </Typography>
               </Box>
             )}

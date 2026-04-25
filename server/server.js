@@ -6,16 +6,17 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const http = require('http');
 const socketIo = require('socket.io');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const authRoutes = require('./routes/auth');
 const projectRoutes = require('./routes/projects');
 const costRoutes = require('./routes/cost');
-const mapRoutes = require('./routes/maps');
 const exportRoutes = require('./routes/export');
-const floorplanRoutes = require('./routes/floorplan');
 const pricePredictionRoutes = require('./routes/price-prediction');
 const chatbotRoutes = require('./routes/chatbot');
+const floorplanRoutes = require('./routes/floorplan');
+const costEstimatesRoutes = require('./routes/cost-estimates');
 
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/restmage';
@@ -32,7 +33,8 @@ const RATE_LIMIT_MAX_REQUESTS = 100;
 const app = express();
 
 // Trust proxy for accurate IP detection behind reverse proxies (e.g., Railway)
-app.set('trust proxy', 1);
+const isProduction = process.env.NODE_ENV === 'production';
+app.set('trust proxy', isProduction ? 1 : false);
 
 const server = http.createServer(app);
 
@@ -44,9 +46,11 @@ const io = socketIo(server, {
       if (!origin) return callback(null, true);
       if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
       if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
+      console.warn('Socket.IO CORS blocked origin:', origin);
+      return callback(null, false);
     },
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -55,30 +59,99 @@ const apiRateLimiter = rateLimit({
   max: RATE_LIMIT_MAX_REQUESTS
 });
 
-app.use(helmet());
-app.use(apiRateLimiter);
-// CORS: allow configured origins and any localhost:* during development
-app.use(cors({
+// CORS must be applied BEFORE helmet and other middleware
+// to properly handle preflight OPTIONS requests
+const corsOptions = {
   origin: (origin, callback) => {
+    // Log origin for debugging in production
+    if (isProduction) {
+      console.log('CORS request from origin:', origin);
+    }
     if (ALLOW_ALL_ORIGINS) return callback(null, true);
     if (!origin) return callback(null, true);
-      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-    return callback(new Error('Not allowed by CORS'));
+    // Return false instead of error to avoid crashing - will result in no CORS headers
+    console.warn('CORS blocked origin:', origin, '| Allowed:', ALLOWED_ORIGINS);
+    return callback(null, false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+};
+
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
+app.use(apiRateLimiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Make Socket.IO available to routes
+app.set('io', io);
+
+// Request logging middleware - reduced in production
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    // Minimal logging in production
+    console.log(`${req.method} ${req.url}`);
+  } else {
+    // Verbose logging in development
+    console.log(`\n📨 ${req.method} ${req.url}`);
+    console.log('Origin:', req.headers.origin || 'No origin');
+    console.log('Content-Type:', req.headers['content-type'] || 'No content-type');
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+      console.log('Body:', JSON.stringify(req.body, null, 2));
+    }
+  }
+  next();
+});
 
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/cost', costRoutes);
-app.use('/api/maps', mapRoutes);
 app.use('/api/export', exportRoutes);
-app.use('/api/floorplan', floorplanRoutes);
 app.use('/api/price-prediction', pricePredictionRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/floorplan', floorplanRoutes);
+app.use('/api/cost-estimates', costEstimatesRoutes);
+
+// Serve static assets in production (only if client build exists)
+if (process.env.NODE_ENV === 'production') {
+  const fs = require('fs');
+  const clientBuildPath = path.join(__dirname, '../client/build');
+  const indexPath = path.join(clientBuildPath, 'index.html');
+  
+  // Only serve static files if the client build directory exists
+  if (fs.existsSync(clientBuildPath) && fs.existsSync(indexPath)) {
+    console.log('Serving static files from client build');
+    app.use(express.static(clientBuildPath));
+
+    app.get('*', (req, res, next) => {
+      if (req.path.startsWith('/api')) {
+        return next();
+      }
+      res.sendFile(indexPath);
+    });
+  } else {
+    console.log('Client build not found - running as API-only server');
+    // Redirect root to API health check or return info
+    app.get('/', (req, res) => {
+      res.json({
+        message: 'Restmage API Server',
+        status: 'running',
+        api: '/api',
+        health: '/api/health',
+        docs: 'API endpoints are available under /api/*'
+      });
+    });
+  }
+}
 
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -134,8 +207,11 @@ const startServer = async () => {
     
     await verifyMongoDeployment(MONGODB_URI);
     
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    // Bind to 0.0.0.0 for production (required by Render and other cloud platforms)
+    const HOST = process.env.HOST || '0.0.0.0';
+    server.listen(PORT, HOST, () => {
+      console.log(`Server running on ${HOST}:${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`API available at http://localhost:${PORT}/api`);
       console.log(`WebSocket ready for real-time updates`);
     });
@@ -145,14 +221,25 @@ const startServer = async () => {
   }
 };
 
-const shutdownGracefully = () => {
-  console.log('SIGTERM received. Shutting down gracefully');
+const shutdownGracefully = (signal) => {
+  console.log(`${signal} received. Shutting down gracefully`);
   server.close(() => {
-    console.log('Server closed. Process terminated');
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed');
+      console.log('Server closed. Process terminated');
+      process.exit(0);
+    });
   });
+  
+  // Force close after 10 seconds
+  setTimeout(() => {
+    console.error('Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
 };
 
-process.on('SIGTERM', shutdownGracefully);
+process.on('SIGTERM', () => shutdownGracefully('SIGTERM'));
+process.on('SIGINT', () => shutdownGracefully('SIGINT'));
 
 startServer();
 

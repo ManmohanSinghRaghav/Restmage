@@ -1,5 +1,9 @@
 const express = require('express');
 const { auth } = require('../middleware/auth');
+const { spawn, spawnSync } = require('child_process');
+const path = require('path');
+const PricePrediction = require('../models/PricePrediction');
+const Project = require('../models/Project');
 
 const router = express.Router();
 
@@ -9,30 +13,31 @@ const router = express.Router();
  */
 
 // Training data coefficients (pre-calculated from typical real estate data)
+// Values converted to INR (approx 84 INR/USD)
 const PRICE_MODEL = {
-  basePrice: 50000, // Base price in USD
+  basePrice: 4200000, // Base price in INR (~50k USD)
   coefficients: {
-    areaPerSqFt: 100, // Price per square foot
-    bedrooms: 15000, // Additional price per bedroom
-    bathrooms: 10000, // Additional price per bathroom
-    age: -2000, // Price reduction per year of age
+    areaPerSqFt: 8400, // Price per square foot
+    bedrooms: 1260000, // Additional price per bedroom
+    bathrooms: 840000, // Additional price per bathroom
+    age: -168000, // Price reduction per year of age
     location: {
-      urban: 50000,
-      suburban: 30000,
-      rural: 10000
+      urban: 4200000,
+      suburban: 2520000,
+      rural: 840000
     },
     condition: {
-      excellent: 40000,
-      good: 20000,
+      excellent: 3360000,
+      good: 1680000,
       fair: 0,
-      poor: -20000
+      poor: -1680000
     },
     amenities: {
-      garage: 15000,
-      garden: 10000,
-      pool: 25000,
-      basement: 20000,
-      balcony: 8000
+      garage: 1260000,
+      garden: 840000,
+      pool: 2100000,
+      basement: 1680000,
+      balcony: 672000
     }
   }
 };
@@ -134,10 +139,32 @@ router.post('/predict', auth, async (req, res) => {
     // Predict price
     const prediction = predictPrice(features);
 
+    // Save prediction
+    const pricePrediction = new PricePrediction({
+      project: req.body.projectId || null,
+      name: req.body.name || 'Heuristic Prediction',
+      inputFeatures: features,
+      estimatedPrice: prediction.estimatedPrice,
+      priceRange: prediction.priceRange,
+      confidence: prediction.confidence,
+      breakdown: prediction.breakdown,
+      predictionMethod: 'heuristic',
+      createdBy: req.user._id
+    });
+    await pricePrediction.save();
+
+    // Update project if projectId is provided
+    if (req.body.projectId) {
+      await Project.findByIdAndUpdate(req.body.projectId, {
+        activePricePrediction: pricePrediction._id
+      });
+    }
+
     res.json({
       success: true,
       message: 'Price prediction completed',
       prediction,
+      predictionId: pricePrediction._id,
       inputFeatures: features,
       currency: 'USD',
       disclaimer: 'This is an estimated price based on general market trends. Actual prices may vary based on specific location and market conditions.'
@@ -218,6 +245,125 @@ router.get('/market-trends', (req, res) => {
   };
 
   res.json(trends);
+});
+
+/**
+ * POST /api/price-prediction/ml-predict
+ * Calls the Python prediction script (uses provided model files in PricePrediction/)
+ */
+router.post('/ml-predict', auth, async (req, res) => {
+  try {
+    const scriptPath = path.join(__dirname, '..', 'PricePrediction', 'predict.py');
+
+    // spawn python process
+    const py = spawn(process.env.PYTHON || 'python', [scriptPath], { cwd: path.join(__dirname, '..') });
+
+    let stdout = '';
+    let stderr = '';
+
+    py.stdout.on('data', chunk => { stdout += chunk.toString(); });
+    py.stderr.on('data', chunk => { stderr += chunk.toString(); });
+
+    py.on('error', err => {
+      console.error('Failed to start python process:', err);
+      return res.status(500).json({ success: false, message: 'Failed to start python process', error: err.message });
+    });
+
+    py.on('close', async code => {
+      if (code !== 0) {
+        console.error('Python prediction error:', stderr);
+        return res.status(500).json({ success: false, message: 'Python prediction failed', detail: stderr });
+      }
+
+      try {
+        const out = JSON.parse(stdout);
+        if (out.error) {
+          return res.status(400).json({ success: false, message: 'Prediction error', detail: out });
+        }
+
+        // Calculate heuristic breakdown to enrich the response
+        // The ML model only returns the total price, so we use the heuristic model
+        // to provide the breakdown of how different factors contribute to the price.
+        const heuristic = predictPrice(req.body);
+        const mlPrice = Math.round(out.predicted_price);
+
+        // Construct the full response object expected by the frontend
+        const prediction = {
+          estimatedPrice: mlPrice,
+          priceRange: {
+            min: Math.round(mlPrice * 0.95),
+            max: Math.round(mlPrice * 1.05)
+          },
+          confidence: 0.92, // Assume ML model is more confident
+          breakdown: heuristic.breakdown
+        };
+
+        // Save prediction
+        const pricePrediction = new PricePrediction({
+          project: req.body.projectId || null,
+          name: req.body.name || 'ML Prediction',
+          inputFeatures: req.body,
+          estimatedPrice: prediction.estimatedPrice,
+          priceRange: prediction.priceRange,
+          confidence: prediction.confidence,
+          breakdown: prediction.breakdown,
+          predictionMethod: 'ml',
+          createdBy: req.user._id
+        });
+        await pricePrediction.save();
+
+        // Update project if projectId is provided
+        if (req.body.projectId) {
+          await Project.findByIdAndUpdate(req.body.projectId, {
+            activePricePrediction: pricePrediction._id
+          });
+        }
+
+        return res.json({
+          success: true,
+          message: 'Prediction completed',
+          prediction,
+          predictionId: pricePrediction._id,
+          input: req.body
+        });
+      } catch (err) {
+        console.error('Invalid JSON from python:', err, stdout);
+        return res.status(500).json({ success: false, message: 'Invalid response from python script', raw: stdout });
+      }
+    });
+
+    // send input JSON to python stdin
+    try {
+      py.stdin.write(JSON.stringify(req.body));
+      py.stdin.end();
+    } catch (e) {
+      console.error('Failed to write to python stdin:', e);
+      return res.status(500).json({ success: false, message: 'Failed to send input to python script', error: e.message });
+    }
+  } catch (error) {
+    console.error('ml-predict error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+});
+
+/**
+ * GET /api/price-prediction/history
+ * Get prediction history
+ */
+router.get('/history', auth, async (req, res) => {
+  try {
+    const predictions = await PricePrediction.find({
+      createdBy: req.user._id
+    }).sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      predictions
+    });
+  } catch (error) {
+    console.error('Error fetching prediction history:', error);
+    res.status(500).json({ message: 'Failed to fetch prediction history' });
+  }
 });
 
 module.exports = router;
