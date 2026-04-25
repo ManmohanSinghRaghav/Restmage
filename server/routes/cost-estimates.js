@@ -210,7 +210,13 @@ router.get('/', auth, async (req, res) => {
 
     const query = { createdBy: userId };
     if (projectId) {
-      query.project = projectId;
+      if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid projectId'
+        });
+      }
+      query.project = new mongoose.Types.ObjectId(projectId);
     }
 
     const skip = (page - 1) * limit;
