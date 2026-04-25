@@ -1,9 +1,10 @@
 const axios = require('axios');
+const crypto = require('crypto');
 
 const BASE_URL = 'http://localhost:5000/api';
 
 // Test data
-const randomId = Math.floor(Math.random() * 10000);
+const randomId = crypto.randomInt(10000);
 const testUser = {
   username: `testuser${randomId}`,
   email: `test${randomId}@example.com`,
